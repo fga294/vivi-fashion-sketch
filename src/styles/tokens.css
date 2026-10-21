@@ -30,6 +30,7 @@
   --plate-rose-hi: #EBA2B4;
   --plate-rose-edge: #CC687F;
   --well-shade: rgba(110, 88, 56, 0.34);
+  --ink-deep: #3B3133; /* labels on the taupe frame (5.2 : 1) */
 
   /* Type */
   --font-ui: 'Quicksand', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif;

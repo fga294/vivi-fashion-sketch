@@ -1,8 +1,22 @@
-import { BANDS, SHEET, SLOT_BANDS, type PlateBand } from '../art/bands.ts';
+import { BANDS, SHEET, slotsFilledBy, SLOT_BANDS, type PlateBand } from '../art/bands.ts';
 import { sheetArt, toneOf } from '../art/emboss.ts';
 import { GUIDE_ART } from '../art/guide.ts';
 import type { Slots } from '../state.ts';
 import { h, pathsSvg, s } from './dom.ts';
+import { icon, type IconName } from './icons.ts';
+import { prefersReducedMotion } from './motion.ts';
+
+/** Where the paper is: none in the frame, down for rubbing, or lifted to swap plates. */
+export type PaperState = 'none' | 'down' | 'lifted';
+
+const PAPER_BUTTON: Record<PaperState, { icon: IconName; word: string; label: string }> = {
+  none: { icon: 'paper', word: 'Paper', label: 'Lay paper' },
+  down: { icon: 'lift', word: 'Lift', label: 'Lift paper' },
+  lifted: { icon: 'layBack', word: 'Lay', label: 'Lay paper back' },
+};
+
+/** Beads fill at 30%, 60% and 90%. */
+const BEAD_STEPS = [0.3, 0.6, 0.9] as const;
 
 /**
  * The wordmark, molded into the frame's top bar: light Quicksand in off-white
@@ -55,6 +69,16 @@ export interface FrameView {
   highlight(band: PlateBand | null): void;
   /** Called when the player taps a placed plate to take it out. */
   onTakeOut(fn: (band: PlateBand) => void): void;
+  /** Lays, lifts and re-lays the paper; its icon and label follow the paper state. */
+  readonly paperButton: HTMLButtonElement;
+  /** Put the drawing sheet in the window, above the plates and below the frame's lip. */
+  mountSheet(sheet: HTMLElement): void;
+  setPaper(state: PaperState): void;
+  /** The window closing over the paper: a little thump of the lip. */
+  clack(): void;
+  /** Show a plate's progress on the beads beside its band(s). */
+  setProgress(band: PlateBand, progress: number): void;
+  resetProgress(): void;
 }
 
 /** The tracing frame: wordmark bar, the 1 : 2.5 window with its three band slots, and progress bead sockets. */
@@ -79,12 +103,24 @@ export function buildFrame(): FrameView {
   }
   window_.append(plates, target);
 
+  const paperDome = h('span', { class: 'bump__dome' });
+  const paperWord = h('span', { class: 'bump__label', 'aria-hidden': 'true' });
+  const paperButton = h('button', { type: 'button', class: 'bump bump--frame paper-btn' }, paperDome, paperWord);
+  const showPaperButton = (state: PaperState): void => {
+    const b = PAPER_BUTTON[state];
+    paperDome.replaceChildren(icon(b.icon));
+    paperWord.textContent = b.word;
+    paperButton.setAttribute('aria-label', b.label);
+  };
+  showPaperButton('none');
+
   const element = h(
     'section',
     { class: 'frame', 'aria-label': 'Tracing frame' },
     h('h1', { class: 'frame__bar' }, wordmark()),
-    h('div', { class: 'frame__body' }, h('div', { class: 'frame__stage' }, window_, beads)),
+    h('div', { class: 'frame__body' }, h('div', { class: 'frame__stage' }, window_, beads, paperButton)),
   );
+  element.dataset['paper'] = 'none';
 
   return {
     element,
@@ -135,6 +171,42 @@ export function buildFrame(): FrameView {
 
     onTakeOut(fn) {
       takeOut = fn;
+    },
+
+    paperButton,
+
+    mountSheet(sheet) {
+      window_.insertBefore(sheet, target);
+    },
+
+    setPaper(state) {
+      element.dataset['paper'] = state;
+      showPaperButton(state);
+    },
+
+    clack() {
+      if (prefersReducedMotion()) return;
+      window_.animate([{ transform: 'scale(1.012)' }, { transform: 'scale(0.996)' }, { transform: 'none' }], {
+        duration: 180,
+        easing: 'ease-out',
+      });
+    },
+
+    setProgress(band, progress) {
+      for (const slot of slotsFilledBy(band)) {
+        const group = beads.querySelector<HTMLElement>(`.bead-group[data-band="${slot}"]`)!;
+        group.dataset['progress'] = progress.toFixed(3);
+        group.toggleAttribute('data-complete', progress >= BEAD_STEPS[2]);
+        group.querySelectorAll('.bead').forEach((bead, i) => bead.classList.toggle('is-filled', progress >= BEAD_STEPS[i]!));
+      }
+    },
+
+    resetProgress() {
+      for (const group of beads.querySelectorAll<HTMLElement>('.bead-group')) {
+        delete group.dataset['progress'];
+        group.removeAttribute('data-complete');
+        group.querySelectorAll('.bead').forEach((bead) => bead.classList.remove('is-filled'));
+      }
     },
   };
 }

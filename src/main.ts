@@ -5,6 +5,7 @@ import { loadPlates } from './art/loader.ts';
 import { Game } from './state.ts';
 import { announcer } from './ui/announce.ts';
 import { connectPlates } from './ui/controller.ts';
+import { connectPaper } from './ui/paper.ts';
 import { buildTray } from './ui/tray.ts';
 
 const app = document.getElementById('app');
@@ -19,5 +20,6 @@ const game = new Game(await loadPlates().catch((err: unknown) => {
   return [];
 }));
 connectPlates(game, tray);
+const paper = connectPaper(game, tray);
 
-if (import.meta.env.DEV) Object.assign(window, { vivi: { game, tray } });
+if (import.meta.env.DEV) Object.assign(window, { vivi: { game, tray, paper } });

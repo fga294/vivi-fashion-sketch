@@ -60,8 +60,8 @@ test('tray renders cleanly with the self-hosted font', async ({ page }, info) =>
 test('every control is a labelled button of at least 48 px', async ({ page }) => {
   await open(page);
   const buttons = page.locator('button');
-  // 5 wells + crayon + pencil box + 5 bumps
-  await expect(buttons).toHaveCount(12);
+  // 5 wells + crayon + pencil box + paper + 5 bumps
+  await expect(buttons).toHaveCount(13);
   for (const b of await buttons.all()) {
     await expect(b).toHaveAttribute('aria-label', /\w/);
     await b.scrollIntoViewIfNeeded();

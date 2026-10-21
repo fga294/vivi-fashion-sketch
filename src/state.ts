@@ -55,7 +55,22 @@ export interface GameEvents {
   'plate:flip': { readonly kind: PlateKind; readonly plate: PlateArt };
   'plate:place': { readonly plate: FigurePlate; readonly removed: readonly FigurePlate[] };
   'plate:remove': { readonly plate: FigurePlate };
+  /** Someone tried to change plates while the paper is down. */
+  'plate:locked': Record<string, never>;
+  /** Paper laid in the frame; `fresh` is false when laid back after a lift. */
+  'paper:lay': { readonly fresh: boolean };
+  'paper:lift': Record<string, never>;
+  /** The sheet is cleared and taken out of the frame. */
+  'paper:new': Record<string, never>;
+  'tool:change': { readonly tool: Tool };
+  /** A plate's share of revealed line samples, 0–1. */
+  'band:progress': { readonly band: PlateBand; readonly progress: number };
+  /** A plate reached 90% and finishes itself. Once per band per paper placement. */
+  'band:complete': { readonly band: PlateBand };
 }
+
+/** What the pointer does on the paper. Pencils and the eraser arrive in phase 7. */
+export type Tool = 'none' | 'crayon';
 
 type Handler<T> = (payload: T) => void;
 
@@ -78,7 +93,10 @@ export class Bus<Events extends object> {
 
 /**
  * noPaper: choose plates. paperDown: rub, pattern, colour (plates locked).
- * paperLifted: swap plates while the sheet is kept. Paper arrives in phase 3.
+ * paperLifted: swap plates while the sheet is kept.
+ *
+ *   noPaper --lay--> paperDown --lift--> paperLifted --lay--> paperDown
+ *   any --new sheet--> noPaper
  */
 export type Phase = 'noPaper' | 'paperDown' | 'paperLifted';
 
@@ -88,6 +106,7 @@ export class Game {
   private readonly tops: Record<PlateKind, number> = { head: 0, torso: 0, legs: 0, top: 0, pattern: 0 };
   private current: Slots = {};
   phase: Phase = 'noPaper';
+  tool: Tool = 'none';
 
   constructor(plates: readonly PlateArt[]) {
     const stacks = Object.fromEntries(PLATE_KINDS.map((k) => [k, [] as PlateArt[]])) as Record<PlateKind, PlateArt[]>;
@@ -131,6 +150,37 @@ export class Game {
     this.current = result.slots;
     this.bus.emit('plate:place', { plate, removed: result.removed });
     return result;
+  }
+
+  /** Lay a fresh sheet, or lay the lifted sheet back in registration. */
+  layPaper(): boolean {
+    if (this.phase === 'paperDown') return false;
+    const fresh = this.phase === 'noPaper';
+    this.phase = 'paperDown';
+    this.bus.emit('paper:lay', { fresh });
+    return true;
+  }
+
+  /** Swing the paper up, keeping everything drawn, so plates can be swapped. */
+  liftPaper(): boolean {
+    if (this.phase !== 'paperDown') return false;
+    this.phase = 'paperLifted';
+    this.bus.emit('paper:lift', {});
+    return true;
+  }
+
+  /** Take the sheet out of the frame and start again (saving to the sketchbook arrives in phase 8). */
+  newSheet(): boolean {
+    if (this.phase === 'noPaper') return false;
+    this.phase = 'noPaper';
+    this.bus.emit('paper:new', {});
+    return true;
+  }
+
+  setTool(tool: Tool): void {
+    if (tool === this.tool) return;
+    this.tool = tool;
+    this.bus.emit('tool:change', { tool });
   }
 
   remove(band: PlateBand): FigurePlate | undefined {

@@ -8,6 +8,9 @@ export interface TrayView {
   readonly element: HTMLElement;
   readonly frame: FrameView;
   readonly wells: Readonly<Record<PlateKind, WellView>>;
+  readonly crayon: HTMLButtonElement;
+  /** The bump buttons by tool id: undo, eraser, new, sketchbook, sound. */
+  bump(id: string): HTMLButtonElement;
   /** True when the wells sit in a horizontally scrolling drawer (portrait). */
   drawerScrolls(): boolean;
 }
@@ -20,6 +23,8 @@ export interface TrayView {
 export function buildTray(): TrayView {
   const wells = Object.fromEntries(PLATE_KINDS.map((k) => [k, buildWell(k)])) as Record<PlateKind, WellView>;
   const frame = buildFrame();
+  const pegs = buildPegs();
+  const bumps = buildBumps();
 
   const colA = h(
     'div',
@@ -31,7 +36,7 @@ export function buildTray(): TrayView {
     'div',
     { class: 'col col--b' },
     wells.top.element,
-    h('div', { class: 'bay bay--kit' }, wells.pattern.element, buildPegs()),
+    h('div', { class: 'bay bay--kit' }, wells.pattern.element, pegs.element),
   );
   const drawer = h('section', { class: 'drawer', 'aria-label': 'Plates and tools' }, colA, colB);
 
@@ -44,9 +49,11 @@ export function buildTray(): TrayView {
   );
 
   return {
-    element: h('div', { class: 'tray' }, frame.element, drawer, buildBumps(), hints),
+    element: h('div', { class: 'tray' }, frame.element, drawer, bumps, hints),
     frame,
     wells,
+    crayon: pegs.crayon,
+    bump: (id) => bumps.querySelector<HTMLButtonElement>(`[data-tool="${id}"]`)!,
     drawerScrolls: () => drawer.scrollWidth > drawer.clientWidth + 1,
   };
 }

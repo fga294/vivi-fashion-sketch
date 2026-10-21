@@ -107,3 +107,44 @@ describe('Game', () => {
     expect(g.remove('legs')!.id).toBe('legs-1');
   });
 });
+
+describe('paper state machine', () => {
+  const g = (): Game => new Game([plate('head'), plate('legs')]);
+
+  it('goes noPaper → paperDown ⇄ paperLifted → noPaper', () => {
+    const game = g();
+    const seen: string[] = [];
+    game.bus.on('paper:lay', ({ fresh }) => seen.push(fresh ? 'lay' : 'relay'));
+    game.bus.on('paper:lift', () => seen.push('lift'));
+    game.bus.on('paper:new', () => seen.push('new'));
+
+    expect(game.liftPaper()).toBe(false); // nothing to lift yet
+    expect(game.layPaper()).toBe(true);
+    expect(game.layPaper()).toBe(false); // already down
+    expect(game.liftPaper()).toBe(true);
+    expect(game.phase).toBe('paperLifted');
+    expect(game.layPaper()).toBe(true);
+    expect(game.newSheet()).toBe(true);
+    expect(game.newSheet()).toBe(false);
+    expect(seen).toEqual(['lay', 'lift', 'relay', 'new']);
+    expect(game.phase).toBe('noPaper');
+  });
+
+  it('only lets plates change while the paper is off or lifted', () => {
+    const game = g();
+    game.layPaper();
+    expect(game.canSwapPlates).toBe(false);
+    game.liftPaper();
+    expect(game.canSwapPlates).toBe(true);
+  });
+
+  it('announces tool changes once', () => {
+    const game = g();
+    const tools: string[] = [];
+    game.bus.on('tool:change', ({ tool }) => tools.push(tool));
+    game.setTool('crayon');
+    game.setTool('crayon');
+    game.setTool('none');
+    expect(tools).toEqual(['crayon', 'none']);
+  });
+});

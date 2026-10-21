@@ -43,6 +43,7 @@ export function connectPlates(game: Game, tray: TrayView): void {
   const place = async (kind: PlateKind, ghost: HTMLElement | null): Promise<void> => {
     const plate: PlateArt | undefined = game.topOf(kind);
     const face = wells[kind].face();
+    if (!game.canSwapPlates) game.bus.emit('plate:locked', {});
     if (!plate || !isFigure(plate) || !game.canSwapPlates || !face) {
       ghost?.remove();
       return;
@@ -78,6 +79,7 @@ export function connectPlates(game: Game, tray: TrayView): void {
     dragStart: (event, origin) => {
       const plate = game.topOf(kind);
       const face = wells[kind].face();
+      if (!game.canSwapPlates) game.bus.emit('plate:locked', {});
       if (!plate || !isFigure(plate) || !face || !game.canSwapPlates) return;
       dragPlate({
         event,

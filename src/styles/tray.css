@@ -392,6 +392,15 @@ button {
   height: auto;
   transform: rotate(-3deg);
   filter: drop-shadow(0 2px 1px rgba(50, 35, 30, 0.35));
+  transition:
+    transform 260ms cubic-bezier(0.3, 0.7, 0.3, 1),
+    opacity 220ms ease-out;
+}
+
+/* Lifted out of its well and in the player's hand (the cursor sprite arrives in phase 4). */
+.crayon[aria-pressed='true'] .crayon__art {
+  transform: translateY(-40%) rotate(-8deg) scale(1.05);
+  opacity: 0;
 }
 
 .pencil-holder {

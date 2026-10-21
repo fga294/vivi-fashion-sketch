@@ -60,16 +60,23 @@ function pencilBoxArt(): SVGSVGElement {
   );
 }
 
+export interface Pegs {
+  readonly element: HTMLElement;
+  readonly crayon: HTMLButtonElement;
+  readonly pencils: HTMLButtonElement;
+}
+
 /** Open tray area: peg bumps with the crayon in its well and the pencil box. */
-export function buildPegs(): HTMLElement {
-  const crayon = h('button', { type: 'button', class: 'crayon', 'aria-label': 'Crayon' }, crayonArt());
+export function buildPegs(): Pegs {
+  const crayon = h('button', { type: 'button', class: 'crayon', 'aria-label': 'Crayon', 'aria-pressed': 'false' }, crayonArt());
   const pencils = h('button', { type: 'button', class: 'pencil-box', 'aria-label': 'Pencils' }, pencilBoxArt());
-  return h(
+  const element = h(
     'div',
     { class: 'pegs' },
     h('div', { class: 'crayon-well' }, crayon),
     h('div', { class: 'pencil-holder' }, pencils),
   );
+  return { element, crayon, pencils };
 }
 
 interface Bump {
