@@ -23,3 +23,7 @@ connectPlates(game, tray);
 const paper = connectPaper(game, tray);
 
 if (import.meta.env.DEV) Object.assign(window, { vivi: { game, tray, paper } });
+// Effect counters for tests and tuning: open the game with ?fxstats.
+if (new URLSearchParams(location.search).has('fxstats')) {
+  Object.assign(window, { __viviFx: { stats: paper.fx.stats, crumbs: paper.fx.crumbs, glints: paper.fx.glints, cursor: paper.cursor } });
+}

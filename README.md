@@ -2,7 +2,7 @@
 
 A browser game in the spirit of the classic rub-and-colour fashion design kits: slot head, torso and legs plates into a tracing frame, rub a crayon over the paper to reveal the outfit, then colour it in. See `PLAN.md` for the full design and `DECISIONS.md` for choices made along the way.
 
-Status: **phase 3 of 9** (paper and rubbing: lay the paper, scrub with the crayon to reveal the outfit, lift to swap plates).
+Status: **phase 4 of 9** (scrub animations: crayon cursor, wax crumbs, line twinkles, paper nudge, bead bounce).
 
 ## Develop
 
@@ -19,6 +19,8 @@ npm run check:plates # validate the plate art on its own, with a readable report
 npx playwright install chromium webkit   # once
 npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, frame rate
 ```
+
+Open the game with `?fxstats` to publish the scrub-effect counters (crumbs and twinkles spawned and alive, nudge and rattle frames) on `window.__viviFx`; the effect tests read them.
 
 The frame-rate check (`tests/e2e/perf.spec.ts`) runs last and alone, in Chromium with GPU canvases and the CPU slowed 4×. Headless browsers draw canvases without a GPU, so their frame times say little about a device. Check a real iPad too: open the game in Safari, connect Safari's Web Inspector (Develop menu), record a Timeline while scrubbing, and look for 60 fps.
 

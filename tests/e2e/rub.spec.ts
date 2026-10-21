@@ -69,6 +69,22 @@ function ink(page: Page, layer: 'lines' | 'tone', rect: Rect): Promise<number> {
 
 const beads = (page: Page, band: string) => page.locator(`.bead-group[data-band="${band}"]`);
 
+/**
+ * Wait until a layer has ink and stops changing (queued stamps drawn, finishing
+ * sweeps done), then return its ink. A busy test machine can delay frames, so
+ * zero ink never counts as settled.
+ */
+async function settledInk(page: Page, layer: 'lines' | 'tone', rect: Rect): Promise<number> {
+  let last = -1;
+  for (let i = 0; i < 60; i++) {
+    const now = await ink(page, layer, rect);
+    if (now > 0 && now === last) return now;
+    last = now;
+    await page.waitForTimeout(150);
+  }
+  return last;
+}
+
 test('laying paper slides a sheet in, picks up the crayon and locks the plates', async ({ page }) => {
   const errors = await setUp(page);
   await layPaper(page);
@@ -89,7 +105,7 @@ test('lines appear only where rubbed', async ({ page }) => {
   await layPaper(page);
   expect(await ink(page, 'lines', [0, 0, 600, 1500])).toBe(0);
   await scrub(page, zigzag([200, 40, 400, 200]));
-  await page.waitForTimeout(600); // let a completion sweep finish if the head got there
+  expect(await settledInk(page, 'lines', [0, 0, 600, 1500])).toBeGreaterThan(200);
   expect(await ink(page, 'lines', [200, 30, 400, 250])).toBeGreaterThan(200);
   expect(await ink(page, 'lines', [0, 300, 600, 1500])).toBe(0);
   expect(await ink(page, 'tone', [0, 300, 600, 1500])).toBe(0);
@@ -101,7 +117,8 @@ test('a fast scrub leaves no gaps', async ({ page }) => {
   await layPaper(page);
   // One pointer event for a 400-unit jump across the sheet.
   await scrub(page, [[100, 820], [500, 820]], 1);
-  const holes = await page.evaluate(() => {
+  const holes = (): Promise<number[]> =>
+    page.evaluate(() => {
     const src = document.querySelector<HTMLCanvasElement>('.layer--tone')!;
     const s = src.width / 600;
     const c = Object.assign(document.createElement('canvas'), { width: src.width, height: 16 * s });
@@ -116,14 +133,14 @@ test('a fast scrub leaves no gaps', async ({ page }) => {
     }
     return missing;
   });
-  expect(holes).toEqual([]);
+  await expect.poll(holes, { timeout: 10_000 }).toEqual([]);
 });
 
 test('a full scrub reaches 100% progress on every band', async ({ page }) => {
   const errors = await setUp(page);
   await layPaper(page);
   await scrub(page, zigzag([150, 10, 450, 1490], 26), 3);
-  await page.waitForTimeout(700); // completion sweeps take 400 ms
+  await settledInk(page, 'lines', [0, 0, 600, 1500]); // completion sweeps take 400 ms
   for (const band of ['head', 'torso', 'legs']) {
     await expect(beads(page, band)).toHaveAttribute('data-progress', '1.000');
     await expect(beads(page, band)).toHaveAttribute('data-complete', '');
@@ -136,8 +153,7 @@ test('lifting keeps the drawing; laying it back lines up and re-arms the bands',
   await setUp(page);
   await layPaper(page);
   await scrub(page, zigzag([200, 40, 400, 230]));
-  await page.waitForTimeout(600);
-  const before = await ink(page, 'lines', [0, 0, 600, 250]);
+  const before = await settledInk(page, 'lines', [0, 0, 600, 250]);
   expect(before).toBeGreaterThan(0);
 
   await page.locator('.paper-btn').click();
@@ -154,8 +170,7 @@ test('lifting keeps the drawing; laying it back lines up and re-arms the bands',
   expect(await ink(page, 'lines', [0, 0, 600, 250])).toBe(before); // nothing lost, nothing moved
   await expect(beads(page, 'head')).toHaveAttribute('data-progress', '0.000'); // re-armed
   await scrub(page, zigzag([200, 40, 400, 230]));
-  await page.waitForTimeout(600);
-  expect(await ink(page, 'lines', [0, 0, 600, 250])).toBeGreaterThan(before); // the new plate layers on top
+  expect(await settledInk(page, 'lines', [0, 0, 600, 250])).toBeGreaterThan(before); // the new plate layers on top
 });
 
 test('a new sheet clears the paper', async ({ page }) => {

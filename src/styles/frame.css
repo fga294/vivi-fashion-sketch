@@ -67,6 +67,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
+  will-change: transform; /* rattles on very fast scrubs, compositor-only */
   border-radius: 6px;
   background: var(--tray-shadow);
   box-shadow:
@@ -217,14 +218,17 @@
   z-index: 2;
   overflow: hidden;
   touch-action: none;
+  /* Its own compositor layer: the scrub nudge and lift then move it without repainting six canvases. */
+  will-change: transform;
   transform-origin: 50% 0;
   transition:
     transform 460ms cubic-bezier(0.3, 0.7, 0.3, 1),
     opacity 460ms ease-out;
 }
 
-.sheet[data-tool='crayon'] {
-  cursor: crosshair;
+/* The crayon sprite is the cursor over the paper. */
+.frame[data-paper='down'] .sheet[data-tool='crayon'] {
+  cursor: none;
 }
 
 .sheet .layer {

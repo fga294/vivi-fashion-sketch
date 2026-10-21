@@ -1,4 +1,4 @@
-import { BANDS, SHEET, slotsFilledBy, SLOT_BANDS, type PlateBand } from '../art/bands.ts';
+import { BANDS, SHEET, slotsFilledBy, SLOT_BANDS, type PlateBand, type SlotBand } from '../art/bands.ts';
 import { sheetArt, toneOf } from '../art/emboss.ts';
 import { GUIDE_ART } from '../art/guide.ts';
 import type { Slots } from '../state.ts';
@@ -76,18 +76,25 @@ export interface FrameView {
   setPaper(state: PaperState): void;
   /** The window closing over the paper: a little thump of the lip. */
   clack(): void;
-  /** Show a plate's progress on the beads beside its band(s). */
+  /** Show a plate's progress on the beads beside its band(s); newly filled beads bounce. */
   setProgress(band: PlateBand, progress: number): void;
   resetProgress(): void;
+  /** Called when a bead fills, with how many beads that band now has. */
+  onBeadFill(fn: (band: SlotBand, count: number) => void): void;
+  /** The window the paper sits in (it rattles on very fast scrubs). */
+  readonly windowElement: HTMLElement;
 }
 
 /** The tracing frame: wordmark bar, the 1 : 2.5 window with its three band slots, and progress bead sockets. */
 export function buildFrame(): FrameView {
   const window_ = h('div', { class: 'frame__window' });
+  // Bead elements and their state, kept so progress updates (every frame while rubbing) touch the DOM only on change.
+  const beadGroups = {} as Record<SlotBand, { group: HTMLElement; dots: HTMLElement[]; filled: boolean[]; shown: string }>;
   const beads = h('div', { class: 'frame__beads', 'aria-hidden': 'true' });
   const plates = h('div', { class: 'frame__plates' });
   const target = h('div', { class: 'frame__target', 'aria-hidden': 'true', hidden: true });
   let takeOut: (band: PlateBand) => void = () => {};
+  let beadFilled: (band: SlotBand, count: number) => void = () => {};
 
   // Faint debossed guide figure, so kids can see where each plate goes.
   window_.append(pathsSvg(`0 0 ${SHEET.width} ${SHEET.height}`, SLOT_BANDS.flatMap((b) => GUIDE_ART[b]), 'frame__ghost'));
@@ -98,8 +105,10 @@ export function buildFrame(): FrameView {
 
     const group = h('div', { class: 'bead-group', 'data-band': band });
     placeBand(group, band);
-    group.append(h('span', { class: 'bead' }), h('span', { class: 'bead' }), h('span', { class: 'bead' }));
+    const dots = [h('span', { class: 'bead' }), h('span', { class: 'bead' }), h('span', { class: 'bead' })];
+    group.append(...dots);
     beads.append(group);
+    beadGroups[band] = { group, dots, filled: [false, false, false], shown: '' };
   }
   window_.append(plates, target);
 
@@ -193,19 +202,45 @@ export function buildFrame(): FrameView {
     },
 
     setProgress(band, progress) {
+      const shown = progress.toFixed(3);
       for (const slot of slotsFilledBy(band)) {
-        const group = beads.querySelector<HTMLElement>(`.bead-group[data-band="${slot}"]`)!;
-        group.dataset['progress'] = progress.toFixed(3);
-        group.toggleAttribute('data-complete', progress >= BEAD_STEPS[2]);
-        group.querySelectorAll('.bead').forEach((bead, i) => bead.classList.toggle('is-filled', progress >= BEAD_STEPS[i]!));
+        const g = beadGroups[slot];
+        if (g.shown === shown) continue;
+        g.shown = shown;
+        g.group.dataset['progress'] = shown;
+        g.group.toggleAttribute('data-complete', progress >= BEAD_STEPS[2]);
+        for (let i = 0; i < g.dots.length; i++) {
+          const fill = progress >= BEAD_STEPS[i]!;
+          if (fill === g.filled[i]) continue;
+          g.filled[i] = fill;
+          const bead = g.dots[i]!;
+          bead.classList.toggle('is-filled', fill);
+          if (!fill) continue;
+          // A tiny bounce as the bead fills (the soft pop is phase 5's sound).
+          if (!prefersReducedMotion()) {
+            bead.animate(
+              [{ transform: 'scale(1)' }, { transform: 'scale(1.45) translateY(-1px)' }, { transform: 'scale(0.88)' }, { transform: 'scale(1)' }],
+              { duration: 340, easing: 'ease-out' },
+            );
+          }
+          beadFilled(slot, i + 1);
+        }
       }
     },
 
+    onBeadFill(fn) {
+      beadFilled = fn;
+    },
+
+    windowElement: window_,
+
     resetProgress() {
-      for (const group of beads.querySelectorAll<HTMLElement>('.bead-group')) {
-        delete group.dataset['progress'];
-        group.removeAttribute('data-complete');
-        group.querySelectorAll('.bead').forEach((bead) => bead.classList.remove('is-filled'));
+      for (const g of Object.values(beadGroups)) {
+        delete g.group.dataset['progress'];
+        g.group.removeAttribute('data-complete');
+        g.dots.forEach((bead) => bead.classList.remove('is-filled'));
+        g.filled.fill(false);
+        g.shown = '';
       }
     },
   };

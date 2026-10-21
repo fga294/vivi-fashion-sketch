@@ -317,6 +317,30 @@ button {
   vector-effect: non-scaling-stroke;
 }
 
+/* ---------- The crayon cursor ---------- */
+
+.tool-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  pointer-events: none;
+  will-change: transform;
+  filter: drop-shadow(2px 5px 3px rgba(50, 35, 30, 0.3));
+  transition: opacity 200ms ease-out;
+}
+
+.tool-cursor svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.tool-cursor.is-leaving {
+  opacity: 0;
+}
+
 /* ---------- Plates in flight between tray and frame ---------- */
 
 .flight-layer {

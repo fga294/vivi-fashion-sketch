@@ -1,7 +1,7 @@
 // The rubbing engine. The crayon lays ragged, grainy stamps along the pointer
 // path. Each frame, the new stamps are composited once:
 //   tone  += stamps × grain              (shown at 13%: the faint wax haze)
-//   lines += stamps ∩ plateArt × grain   (the raised lines, in crayon colour)
+//   lines += stamps × grain ∩ plateArt   (the raised lines, in crayon colour)
 // Wax only ever adds, so drawing straight onto these layers gives the same result
 // as PLAN.md's bakedLines + live mask, with two fewer full-size buffers.
 
@@ -115,6 +115,8 @@ export class RubEngine {
   private readonly queue = new Float32Array(4 * 2048);
   private queued = 0;
   private alpha = stampAlpha(0.85);
+  /** Called with the sheet position of each newly revealed line sample (line twinkles). */
+  onReveal: ((x: number, y: number) => void) | null = null;
   // The scratch batch: origin (px) and used bounds (px) in sheet backing pixels.
   private ox = 0;
   private oy = 0;
@@ -168,6 +170,12 @@ export class RubEngine {
     this.plateArt = offscreen ? offscreen.transferToImageBitmap() : (canvas as HTMLCanvasElement);
 
     for (const band of placed) this.bus.emit('band:progress', { band, progress: 0 });
+  }
+
+  /** Finish any completion sweeps at once, e.g. before the paper is lifted. */
+  finishSweeps(): void {
+    while (this.sweeps.length > 0) this.runSweeps(Infinity);
+    this.coverage?.takeChanged(this.report);
   }
 
   begin(x: number, y: number, strength: number): void {
@@ -248,6 +256,7 @@ export class RubEngine {
     }
     this.queued = 0;
     this.flush();
+    if (this.onReveal) this.coverage?.takeRevealed(this.onReveal);
   }
 
   /** Composite the batched stamps onto the tone and line layers, then clear the batch. */
@@ -262,8 +271,20 @@ export class RubEngine {
     if (w > 0 && h > 0) {
       const sx = x0 - this.ox;
       const sy = y0 - this.oy;
-      this.composite(this.sheet.layer('tone'), x0, y0, w, h, sx, sy, false);
-      if (this.plateArt) this.composite(this.sheet.layer('lines'), x0, y0, w, h, sx, sy, true);
+      // Grain the batch once, in place: (stamps ∩ plateArt) × grain = (stamps × grain) ∩ plateArt.
+      this.grainInto(this.a, sx, sy, w, h, x0, y0);
+      this.sheet.layer('tone').drawImage(this.a.canvas, sx, sy, w, h, x0, y0, w, h);
+      if (this.plateArt) {
+        const b = this.b;
+        b.setTransform(1, 0, 0, 1, 0, 0);
+        b.globalCompositeOperation = 'source-over';
+        b.clearRect(0, 0, w, h);
+        b.drawImage(this.a.canvas, sx, sy, w, h, 0, 0, w, h);
+        b.globalCompositeOperation = 'source-in';
+        b.drawImage(this.plateArt, x0, y0, w, h, 0, 0, w, h);
+        b.globalCompositeOperation = 'source-over';
+        this.sheet.layer('lines').drawImage(b.canvas, 0, 0, w, h, x0, y0, w, h);
+      }
     }
     this.a.setTransform(1, 0, 0, 1, 0, 0);
     this.a.globalAlpha = 1;
@@ -272,30 +293,18 @@ export class RubEngine {
     this.ux1 = this.uy1 = -Infinity;
   }
 
-  /** target += (batch [∩ plateArt]) × grain over the rectangle (x0, y0, w, h). */
-  private composite(target: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, sx: number, sy: number, lines: boolean): void {
-    const b = this.b;
-    b.setTransform(1, 0, 0, 1, 0, 0);
-    b.globalCompositeOperation = 'source-over';
-    b.clearRect(0, 0, w, h);
-    b.drawImage(this.a.canvas, sx, sy, w, h, 0, 0, w, h);
-    if (lines) {
-      b.globalCompositeOperation = 'source-in';
-      b.drawImage(this.plateArt!, x0, y0, w, h, 0, 0, w, h);
-    }
-    this.applyGrain(x0, y0, w, h, lines ? 0 : 97);
-    target.drawImage(b.canvas, 0, 0, w, h, x0, y0, w, h);
-  }
-
-  /** Multiply scratch B's alpha by the grain, anchored to the sheet so the texture never swims. */
-  private applyGrain(x0: number, y0: number, w: number, h: number, shift: number): void {
-    const b = this.b;
-    b.globalCompositeOperation = 'destination-in';
-    b.setTransform(1, 0, 0, 1, -x0 + shift, -y0 + shift);
-    b.fillStyle = this.grainA;
-    b.fillRect(x0 - shift, y0 - shift, w, h);
-    b.setTransform(1, 0, 0, 1, 0, 0);
-    b.globalCompositeOperation = 'source-over';
+  /**
+   * Multiply a scratch area's alpha by the grain. (dx, dy, w, h) is the area in the
+   * scratch; (x0, y0) is where it sits on the sheet, so the texture never swims.
+   */
+  private grainInto(ctx: CanvasRenderingContext2D, dx: number, dy: number, w: number, h: number, x0: number, y0: number): void {
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.setTransform(1, 0, 0, 1, dx - x0, dy - y0);
+    ctx.fillStyle = this.grainA;
+    ctx.fillRect(x0, y0, w, h);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   /** Finishing sweeps: reveal a completed band's remaining lines left to right over 400 ms. */
@@ -316,7 +325,7 @@ export class RubEngine {
         b.globalCompositeOperation = 'source-over';
         b.clearRect(0, 0, w, h);
         b.drawImage(this.plateArt, x0, y, w, h, 0, 0, w, h);
-        this.applyGrain(x0, y, w, h, 0);
+        this.grainInto(b, 0, 0, w, h, x0, y);
         this.sheet.layer('lines').drawImage(b.canvas, 0, 0, w, h, x0, y, w, h);
       }
       sw.x = x0 + w < x1 ? (x0 + w) / s : to;

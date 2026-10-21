@@ -1,4 +1,4 @@
-import type { PlateBand } from './art/bands.ts';
+import type { PlateBand, SlotBand } from './art/bands.ts';
 import { isFigure, PLATE_KINDS, type PlateArt, type PlateKind } from './art/plates.ts';
 
 export type FigurePlate = PlateArt & { readonly band: PlateBand };
@@ -67,6 +67,8 @@ export interface GameEvents {
   'band:progress': { readonly band: PlateBand; readonly progress: number };
   /** A plate reached 90% and finishes itself. Once per band per paper placement. */
   'band:complete': { readonly band: PlateBand };
+  /** A progress bead filled (at 30%, 60% or 90%); `count` is how many are now filled. */
+  'bead:fill': { readonly band: SlotBand; readonly count: number };
 }
 
 /** What the pointer does on the paper. Pencils and the eraser arrive in phase 7. */

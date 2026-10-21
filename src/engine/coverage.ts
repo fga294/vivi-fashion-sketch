@@ -57,6 +57,9 @@ export class Coverage {
   private readonly revealed: Int32Array;
   /** Bands whose revealed count changed since the last takeChanged(). */
   private readonly changed: Uint8Array;
+  /** Samples that crossed the reveal threshold since the last takeRevealed() (for twinkles). */
+  private readonly newlyRevealed = new Int32Array(256);
+  private newlyRevealedCount = 0;
   private readonly cols: number;
   private readonly rows: number;
   /** Compressed cells: samples of cell c are cellItems[cellStart[c] .. cellStart[c + 1]). */
@@ -133,6 +136,7 @@ export class Coverage {
             const b = this.bandOf[i]!;
             this.revealed[b]!++;
             this.changed[b] = 1;
+            if (this.newlyRevealedCount < this.newlyRevealed.length) this.newlyRevealed[this.newlyRevealedCount++] = i;
           }
         }
       }
@@ -152,6 +156,15 @@ export class Coverage {
     }
     this.revealed[band] = this.totals[band]!;
     this.changed[band] = 1;
+  }
+
+  /** Call `fn` with the position of each sample revealed since last time, then forget them. */
+  takeRevealed(fn: (x: number, y: number) => void): void {
+    for (let k = 0; k < this.newlyRevealedCount; k++) {
+      const i = this.newlyRevealed[k]!;
+      fn(this.xs[i]!, this.ys[i]!);
+    }
+    this.newlyRevealedCount = 0;
   }
 
   /** Call `fn` for each band whose progress changed since last time, then reset the flags. */

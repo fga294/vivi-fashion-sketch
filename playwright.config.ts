@@ -41,6 +41,8 @@ export default defineConfig({
       // Frame-rate checks: iPad layout in GPU-accelerated Chromium, alone, after the rest.
       name: 'perf',
       testIgnore: [],
+      // Frame timing on a shared machine has noisy seconds; a real regression fails every attempt.
+      retries: 2,
       testMatch: /perf\.spec\.ts/,
       dependencies: ['desktop-1366x1024', 'ipad-1024x768', 'phone-390x844', 'ipad-1024x768-chromium', 'phone-390x844-chromium'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 1024, height: 768 }, deviceScaleFactor: 2, launchOptions: { args: GPU_ARGS } },
