@@ -1,0 +1,15 @@
+{
+  "sheet": { "width": 600, "height": 1500 },
+  "bands": {
+    "head": { "y0": 0, "y1": 250 },
+    "torso": { "y0": 250, "y1": 570 },
+    "legs": { "y0": 570, "y1": 1500 },
+    "top": { "y0": 0, "y1": 570, "fills": ["head", "torso"] }
+  },
+  "seams": [
+    { "name": "neck", "y": 250, "crossings": [282, 318], "optional": [] },
+    { "name": "waist", "y": 570, "crossings": [258, 342], "optional": [300] }
+  ],
+  "tolerance": 1.5,
+  "feet": { "maxY": 1470, "minX": 210, "maxX": 390 }
+}

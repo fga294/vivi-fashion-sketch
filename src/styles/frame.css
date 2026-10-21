@@ -1,0 +1,138 @@
+.frame {
+  grid-area: frame;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 clamp(6px, 1.2vmin, 14px) clamp(8px, 1.6vmin, 18px);
+  border-radius: calc(var(--radius-tray) - 6px);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0) 50%), var(--frame-taupe);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -2px 0 var(--frame-taupe-dark),
+    0 2px 0 rgba(143, 127, 107, 0.55),
+    0 6px 14px rgba(80, 60, 40, 0.25);
+}
+
+/* ---------- Wordmark bar ---------- */
+
+.frame__bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(38px, 7vmin, 64px);
+  margin: 0;
+  font-size: inherit;
+}
+
+.wordmark {
+  display: block;
+  height: 78%;
+  width: auto;
+  max-width: 100%;
+  overflow: visible;
+  font-family: var(--font-ui);
+  font-weight: 300;
+}
+
+.wordmark__vivi {
+  font-size: 31px;
+  letter-spacing: 0.5px;
+}
+
+.wordmark__rest {
+  font-size: 19px;
+  letter-spacing: 1.3px;
+}
+
+/* ---------- Window and band slots ---------- */
+
+.frame__body {
+  flex: 1 1 0;
+  min-height: 0;
+  container-type: size;
+  display: grid;
+  place-items: center;
+}
+
+/* The window is always 1 : 2.5 (the sheet is 600 × 1500 units), leaving room for the beads. */
+.frame__stage {
+  position: relative;
+  width: min(calc(100cqw - 64px), calc(100cqh * 0.4));
+  aspect-ratio: 2 / 5;
+}
+
+.frame__window {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--tray-shadow);
+  box-shadow:
+    inset 0 4px 6px rgba(70, 52, 32, 0.32),
+    inset 0 0 0 1px var(--frame-taupe-dark),
+    0 1px 0 rgba(255, 255, 255, 0.4),
+    0 -1px 0 rgba(70, 52, 32, 0.25);
+}
+
+.frame__ghost {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: rgba(143, 127, 107, 0.5);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* Debossed: the groove's lower-right wall catches the light. */
+  filter: drop-shadow(1px 1px 0 rgba(255, 255, 255, 0.5));
+}
+
+.frame__ghost path {
+  vector-effect: non-scaling-stroke;
+}
+
+.slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+/* Seam grooves between bands. */
+.slot + .slot {
+  border-top: 1px solid rgba(110, 88, 56, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* ---------- Progress bead sockets (filled in phase 4) ---------- */
+
+.frame__beads {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(100% + 9px);
+  width: 12px;
+}
+
+.bead-group {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.bead {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--frame-taupe-dark);
+  box-shadow:
+    inset 0 1.5px 2px rgba(40, 30, 20, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.3);
+}
