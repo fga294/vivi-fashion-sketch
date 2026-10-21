@@ -1,4 +1,4 @@
-import { pathsSvg } from './dom';
+import { pathsSvg } from './dom.ts';
 
 // 24 × 24 stroke icons, drawn for this project.
 const ICONS = {

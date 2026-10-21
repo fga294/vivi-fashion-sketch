@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" data-band="pattern" data-name="Polka dots"
+  fill="none" stroke="#2F2A2E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <title>Polka dots</title>
+  <circle cx="30" cy="30" r="11"/>
+  <circle cx="90" cy="90" r="11"/>
+  <circle cx="90" cy="30" r="3"/>
+  <circle cx="30" cy="90" r="3"/>
+</svg>

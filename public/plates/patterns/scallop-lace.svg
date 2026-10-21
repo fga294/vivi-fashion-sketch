@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" data-band="pattern" data-name="Scallop lace"
+  fill="none" stroke="#2F2A2E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <title>Scallop lace</title>
+  <path d="M0 34 L120 34"/>
+  <path d="M0 40 C0 56 30 56 30 40 C30 56 60 56 60 40 C60 56 90 56 90 40 C90 56 120 56 120 40"/>
+  <path d="M0 94 L120 94"/>
+  <path d="M15 100 C15 116 45 116 45 100 C45 116 75 116 75 100 C75 116 105 116 105 100"/>
+  <path d="M105 100 C105 108 112 112 120 112"/>
+  <path d="M0 112 C8 112 15 108 15 100"/>
+  <circle cx="15" cy="45" r="3"/>
+  <circle cx="45" cy="45" r="3"/>
+  <circle cx="75" cy="45" r="3"/>
+  <circle cx="105" cy="45" r="3"/>
+  <circle cx="30" cy="105" r="3"/>
+  <circle cx="60" cy="105" r="3"/>
+  <circle cx="90" cy="105" r="3"/>
+  <circle cx="15" cy="16" r="2"/>
+  <circle cx="45" cy="16" r="2"/>
+  <circle cx="75" cy="16" r="2"/>
+  <circle cx="105" cy="16" r="2"/>
+  <circle cx="30" cy="76" r="2"/>
+  <circle cx="60" cy="76" r="2"/>
+  <circle cx="90" cy="76" r="2"/>
+</svg>

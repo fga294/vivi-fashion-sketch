@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" data-band="pattern" data-name="Hearts"
+  fill="none" stroke="#2F2A2E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <title>Hearts</title>
+  <path d="M30 42 C18 34 16 26 20 22 C24 18 29 20 30 25 C31 20 36 18 40 22 C44 26 42 34 30 42 Z"/>
+  <path d="M90 102 C78 94 76 86 80 82 C84 78 89 80 90 85 C91 80 96 78 100 82 C104 86 102 94 90 102 Z"/>
+  <circle cx="90" cy="30" r="2.5"/>
+  <circle cx="30" cy="90" r="2.5"/>
+</svg>

@@ -1,6 +1,6 @@
-import { PENCILS } from '../art/colours';
-import { h, s } from './dom';
-import { icon, type IconName } from './icons';
+import { PENCILS } from '../art/colours.ts';
+import { h, s } from './dom.ts';
+import { icon, type IconName } from './icons.ts';
 
 /** The rubbing crayon: a short black wax block with a taupe paper wrapper. */
 function crayonArt(): SVGSVGElement {

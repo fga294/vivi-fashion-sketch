@@ -11,5 +11,7 @@
     { "name": "waist", "y": 570, "crossings": [258, 342], "optional": [300] }
   ],
   "tolerance": 1.5,
-  "feet": { "maxY": 1470, "minX": 210, "maxX": 390 }
+  "clearance": 3,
+  "feet": { "maxY": 1470, "minX": 210, "maxX": 390, "zoneY": 1400 },
+  "patternTile": 120
 }

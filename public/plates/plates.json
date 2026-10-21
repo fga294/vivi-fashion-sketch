@@ -1,0 +1,166 @@
+{
+  "plates": [
+    {
+      "id": "head-bob-beret",
+      "band": "head",
+      "name": "Bob with beret",
+      "file": "heads/bob-beret.svg"
+    },
+    {
+      "id": "head-waves-headband",
+      "band": "head",
+      "name": "Shoulder-length waves with headband",
+      "file": "heads/waves-headband.svg"
+    },
+    {
+      "id": "head-curly-puff-ribbon",
+      "band": "head",
+      "name": "Curly puff with ribbon",
+      "file": "heads/curly-puff-ribbon.svg"
+    },
+    {
+      "id": "head-fringe-sunhat",
+      "band": "head",
+      "name": "Straight fringe with sun hat",
+      "file": "heads/fringe-sunhat.svg"
+    },
+    {
+      "id": "head-ponytail-scarf",
+      "band": "head",
+      "name": "High ponytail with scarf",
+      "file": "heads/ponytail-scarf.svg"
+    },
+    {
+      "id": "head-pixie-sunglasses",
+      "band": "head",
+      "name": "Pixie cut with sunglasses pushed up",
+      "file": "heads/pixie-sunglasses.svg"
+    },
+    {
+      "id": "torso-puff-blouse-bow",
+      "band": "torso",
+      "name": "Puff-sleeve blouse with bow",
+      "file": "torsos/puff-blouse-bow.svg"
+    },
+    {
+      "id": "torso-striped-tee",
+      "band": "torso",
+      "name": "Striped tee, hands on hips",
+      "file": "torsos/striped-tee.svg"
+    },
+    {
+      "id": "torso-denim-jacket",
+      "band": "torso",
+      "name": "Cropped denim jacket",
+      "file": "torsos/denim-jacket.svg"
+    },
+    {
+      "id": "torso-sailor-collar",
+      "band": "torso",
+      "name": "Sailor-collar top",
+      "file": "torsos/sailor-collar.svg"
+    },
+    {
+      "id": "torso-turtleneck-clasped",
+      "band": "torso",
+      "name": "Turtleneck, hands clasped",
+      "file": "torsos/turtleneck-clasped.svg"
+    },
+    {
+      "id": "torso-tank-wave",
+      "band": "torso",
+      "name": "Tank top, one hand waving",
+      "file": "torsos/tank-wave.svg"
+    },
+    {
+      "id": "legs-pleated-midi-boots",
+      "band": "legs",
+      "name": "Pleated midi skirt with knee boots",
+      "file": "legs/pleated-midi-boots.svg"
+    },
+    {
+      "id": "legs-flares-platforms",
+      "band": "legs",
+      "name": "Wide flares with platform shoes",
+      "file": "legs/flares-platforms.svg"
+    },
+    {
+      "id": "legs-denim-mini-sneakers",
+      "band": "legs",
+      "name": "Denim mini with sneakers",
+      "file": "legs/denim-mini-sneakers.svg"
+    },
+    {
+      "id": "legs-pinafore-pockets",
+      "band": "legs",
+      "name": "Pinafore skirt with patch pockets",
+      "file": "legs/pinafore-pockets.svg"
+    },
+    {
+      "id": "legs-tennis-skirt-socks",
+      "band": "legs",
+      "name": "Tennis skirt with socks",
+      "file": "legs/tennis-skirt-socks.svg"
+    },
+    {
+      "id": "legs-tiered-maxi-sandals",
+      "band": "legs",
+      "name": "Tiered maxi with sandals",
+      "file": "legs/tiered-maxi-sandals.svg"
+    },
+    {
+      "id": "top-tennis-racket",
+      "band": "top",
+      "name": "Tennis player with racket",
+      "file": "tops/tennis-racket.svg"
+    },
+    {
+      "id": "top-hat-brim",
+      "band": "top",
+      "name": "Hand on a wide hat brim",
+      "file": "tops/hat-brim.svg"
+    },
+    {
+      "id": "top-long-hair-bag",
+      "band": "top",
+      "name": "Long hair with a shoulder bag",
+      "file": "tops/long-hair-bag.svg"
+    },
+    {
+      "id": "pattern-polka-dots",
+      "band": "pattern",
+      "name": "Polka dots",
+      "file": "patterns/polka-dots.svg"
+    },
+    {
+      "id": "pattern-gingham",
+      "band": "pattern",
+      "name": "Gingham",
+      "file": "patterns/gingham.svg"
+    },
+    {
+      "id": "pattern-stripes",
+      "band": "pattern",
+      "name": "Stripes",
+      "file": "patterns/stripes.svg"
+    },
+    {
+      "id": "pattern-small-florals",
+      "band": "pattern",
+      "name": "Small florals",
+      "file": "patterns/small-florals.svg"
+    },
+    {
+      "id": "pattern-hearts",
+      "band": "pattern",
+      "name": "Hearts",
+      "file": "patterns/hearts.svg"
+    },
+    {
+      "id": "pattern-scallop-lace",
+      "band": "pattern",
+      "name": "Scallop lace",
+      "file": "patterns/scallop-lace.svg"
+    }
+  ]
+}

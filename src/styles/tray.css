@@ -211,6 +211,10 @@ button {
     flex: 1 1 0;
     min-height: 0;
   }
+
+  .stack {
+    touch-action: none;
+  }
 }
 
 /* ---------- Wells and plates ---------- */
@@ -231,11 +235,41 @@ button {
     0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
-.plate {
+/* Plate tones: blush for head, torso, top and pattern plates; rose for legs. */
+.tone-blush {
   --plate-face: var(--plate-blush);
   --plate-line: var(--plate-blush-line);
   --plate-hi: var(--plate-blush-hi);
   --plate-edge: var(--plate-blush-edge);
+}
+
+.tone-rose {
+  --plate-face: var(--plate-rose);
+  --plate-line: var(--plate-rose-line);
+  --plate-hi: var(--plate-rose-hi);
+  --plate-edge: var(--plate-rose-edge);
+}
+
+/* The stack: one button filling the well; plates inside share one grid cell. */
+.stack {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: calc(var(--radius-well) - 4px);
+  /* Portrait drawer: sideways swipes scroll it, vertical drags lift plates. */
+  touch-action: pan-x;
+}
+
+.stack > .plate {
+  grid-area: 1 / 1;
+}
+
+.stack:disabled {
+  cursor: default;
+}
+
+.plate {
   --stack: calc(var(--edges) * 2px + 4px);
   position: relative;
   display: block;
@@ -244,27 +278,33 @@ button {
   margin: 0 var(--stack) var(--stack) 0;
   border-radius: 8px;
   background: var(--plate-face);
-  transition: transform 110ms ease-out;
+  transition:
+    transform 110ms ease-out,
+    opacity 160ms ease-out;
 }
 
-.plate--rose {
-  --plate-face: var(--plate-rose);
-  --plate-line: var(--plate-rose-line);
-  --plate-hi: var(--plate-rose-hi);
-  --plate-edge: var(--plate-rose-edge);
-}
-
-.plate:active {
+.stack:active > .plate:not(.is-leaving) {
   transform: translate(1px, 1px);
 }
 
+.plate.is-leaving {
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* The well's plate while its ghost is being dragged. */
+.plate.is-source {
+  opacity: 0.45;
+}
+
 /* Raised relief: the line in the plate colour, a shadow at (+1, +1) and a highlight at (−1, −1). */
-.plate__art {
+.relief {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   overflow: visible;
+  pointer-events: none;
   fill: none;
   stroke: var(--plate-face);
   stroke-width: 2.25px;
@@ -273,8 +313,40 @@ button {
   filter: drop-shadow(1px 1px 0 var(--plate-line)) drop-shadow(-1px -1px 0 var(--plate-hi));
 }
 
-.plate__art path {
+.relief path {
   vector-effect: non-scaling-stroke;
+}
+
+/* ---------- Plates in flight between tray and frame ---------- */
+
+.flight-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.ghost {
+  position: fixed;
+  margin: 0;
+  transform-origin: 0 0;
+  aspect-ratio: auto;
+}
+
+.ghost.is-lifted {
+  filter: drop-shadow(0 10px 12px rgba(80, 45, 35, 0.28));
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ---------- Open tray: peg bumps, crayon well, pencil box ---------- */
