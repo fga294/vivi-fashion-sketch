@@ -29,6 +29,7 @@ export function connectPlates(game: Game, tray: TrayView): void {
     const ghost = ghostOf(plateFace(plate, 0), from);
     const well = wells[plate.band];
     const to = well.face()?.getBoundingClientRect() ?? well.button.getBoundingClientRect();
+    game.bus.emit('plate:slide', { to: 'tray' });
     void fly(ghost, to, { duration: 360, fade: true }).then(() => ghost.remove());
   };
 
@@ -53,6 +54,7 @@ export function connectPlates(game: Game, tray: TrayView): void {
     // Note where plates this pushes out sit now, before the frame re-renders.
     const pushed = game.preview(plate).map((p) => [p, frame.slotRect(p.band)] as const);
 
+    game.bus.emit('plate:slide', { to: 'frame' });
     await fly(g, frame.slotRect(plate.band), { duration: 340 });
     game.place(plate);
     frame.render(game.slots);

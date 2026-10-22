@@ -252,6 +252,12 @@
   opacity: 0.13;
 }
 
+/* The outfit's glow: a soft gold halo under the lines, faded in and out when the outfit completes. */
+.layer--glow {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Peek: the plates show faintly through the paper so kids know where to rub. */
 .sheet.is-peek .layer--paper {
   opacity: 0.92;
@@ -278,4 +284,67 @@
 
 .bump--frame .bump__label {
   color: var(--ink-deep);
+}
+
+/* ---------- Ta-da! ---------- */
+
+/* Pops above the top of the frame when the whole outfit is done. */
+.tada {
+  position: absolute;
+  z-index: 8;
+  left: -30%;
+  right: -30%;
+  /* Centred on the window's top edge, over the wordmark bar. */
+  top: -14%;
+  pointer-events: none;
+  transform-origin: 50% 60%;
+}
+
+.tada__art {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 4px 6px rgba(80, 45, 35, 0.3));
+}
+
+.tada__edge {
+  stroke: var(--paper);
+  stroke-width: 19px;
+}
+
+.tada__shadow {
+  stroke: var(--plate-rose-line);
+  stroke-width: 10px;
+}
+
+.tada__ink {
+  stroke: var(--plate-rose);
+  stroke-width: 10px;
+}
+
+.tada__heart {
+  stroke-width: 3px;
+}
+
+.tada__edge .tada__heart {
+  fill: var(--paper);
+  stroke-width: 9px;
+}
+
+.tada__shadow .tada__heart {
+  fill: var(--plate-rose-line);
+}
+
+.tada__ink .tada__heart {
+  fill: var(--plate-rose);
+}
+
+.tada__sparkle {
+  fill: #f6de8d;
+  stroke: #b08428;
+  stroke-width: 1px;
 }

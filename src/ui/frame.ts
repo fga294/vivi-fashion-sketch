@@ -83,6 +83,8 @@ export interface FrameView {
   onBeadFill(fn: (band: SlotBand, count: number) => void): void;
   /** The window the paper sits in (it rattles on very fast scrubs). */
   readonly windowElement: HTMLElement;
+  /** Add something that floats over the window and frame edges (the Ta-da). */
+  mountOverlay(el: HTMLElement): void;
 }
 
 /** The tracing frame: wordmark bar, the 1 : 2.5 window with its three band slots, and progress bead sockets. */
@@ -123,11 +125,12 @@ export function buildFrame(): FrameView {
   };
   showPaperButton('none');
 
+  const stage = h('div', { class: 'frame__stage' }, window_, beads, paperButton);
   const element = h(
     'section',
     { class: 'frame', 'aria-label': 'Tracing frame' },
     h('h1', { class: 'frame__bar' }, wordmark()),
-    h('div', { class: 'frame__body' }, h('div', { class: 'frame__stage' }, window_, beads, paperButton)),
+    h('div', { class: 'frame__body' }, stage),
   );
   element.dataset['paper'] = 'none';
 
@@ -216,7 +219,7 @@ export function buildFrame(): FrameView {
           const bead = g.dots[i]!;
           bead.classList.toggle('is-filled', fill);
           if (!fill) continue;
-          // A tiny bounce as the bead fills (the soft pop is phase 5's sound).
+          // A tiny bounce as the bead fills; bead:fill plays its soft pop.
           if (!prefersReducedMotion()) {
             bead.animate(
               [{ transform: 'scale(1)' }, { transform: 'scale(1.45) translateY(-1px)' }, { transform: 'scale(0.88)' }, { transform: 'scale(1)' }],
@@ -233,6 +236,10 @@ export function buildFrame(): FrameView {
     },
 
     windowElement: window_,
+
+    mountOverlay(el) {
+      stage.append(el);
+    },
 
     resetProgress() {
       for (const g of Object.values(beadGroups)) {

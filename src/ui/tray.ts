@@ -9,6 +9,7 @@ export interface TrayView {
   readonly frame: FrameView;
   readonly wells: Readonly<Record<PlateKind, WellView>>;
   readonly crayon: HTMLButtonElement;
+  readonly pencils: HTMLButtonElement;
   /** The bump buttons by tool id: undo, eraser, new, sketchbook, sound. */
   bump(id: string): HTMLButtonElement;
   /** True when the wells sit in a horizontally scrolling drawer (portrait). */
@@ -53,6 +54,7 @@ export function buildTray(): TrayView {
     frame,
     wells,
     crayon: pegs.crayon,
+    pencils: pegs.pencils,
     bump: (id) => bumps.querySelector<HTMLButtonElement>(`[data-tool="${id}"]`)!,
     drawerScrolls: () => drawer.scrollWidth > drawer.clientWidth + 1,
   };

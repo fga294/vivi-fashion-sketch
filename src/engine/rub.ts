@@ -29,7 +29,8 @@ const STAMP_STRENGTH = 0.46;
 const JITTER = (8 * Math.PI) / 180;
 /** Stamps are batched into a scratch area this many pixels square before compositing. */
 const SCRATCH = 512;
-const SWEEP_MS = 400;
+/** The finishing sweep; fx/celebrate.ts runs its shimmer in step with it. */
+export const SWEEP_MS = 400;
 const STAMP_VARIANTS = 6;
 export const CRAYON_WAX = '#2F2A2E';
 
@@ -216,9 +217,10 @@ export class RubEngine {
     this.bus.emit('band:progress', { band, progress });
     if (progress >= COMPLETE_AT && !this.done[i]) {
       this.done[i] = 1;
-      this.bus.emit('band:complete', { band });
       const { y0, y1 } = BANDS[band];
       this.sweeps.push({ band: i, y0: y0 - 2, y1: y1 + 2, start: performance.now(), x: 0 });
+      this.bus.emit('band:complete', { band });
+      if (this.done.every((d) => d === 1)) this.bus.emit('outfit:complete', {});
     }
   };
 

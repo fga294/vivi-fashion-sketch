@@ -50,6 +50,11 @@ export class Sheet {
     return ctx;
   }
 
+  /** Put an extra element (the celebration glow) in the stack, just under a layer, without allocating it. */
+  insertUnder(el: HTMLElement, name: LayerName): void {
+    this.element.insertBefore(el, this.canvases[name]);
+  }
+
   canvas(name: LayerName): HTMLCanvasElement {
     this.layer(name);
     return this.canvases[name];

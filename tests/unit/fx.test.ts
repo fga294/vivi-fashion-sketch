@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tipPath } from '../../src/fx/cursor.ts';
-import { Bounds, Crumbs, Glints } from '../../src/fx/particles.ts';
+import { Bounds, Confetti, Crumbs, Glints, Sparks } from '../../src/fx/particles.ts';
 import { MAX_TILT, reversed, springStep, tiltFor, type Spring } from '../../src/fx/spring.ts';
 
 describe('Crumbs', () => {
@@ -43,6 +43,55 @@ describe('Glints', () => {
     expect(g.count).toBe(60);
     g.update(2);
     expect(g.count).toBe(0);
+  });
+});
+
+describe('Sparks', () => {
+  it('caps at 96 and each heart or star lasts 900 ms', () => {
+    const p = new Sparks();
+    for (let i = 0; i < 200; i++) p.spawn(300, 400, 0.2, -0.2, 24, 0, 0, i % 4, i % 2, false);
+    expect(p.count).toBe(Sparks.CAP);
+    p.update(899);
+    expect(p.count).toBe(Sparks.CAP);
+    p.update(2);
+    expect(p.count).toBe(0);
+  });
+
+  it('arcs outward: up first, then down under gravity', () => {
+    const p = new Sparks();
+    p.spawn(300, 400, 0.2, -0.15, 24, 0, 0, 0, 0, false);
+    p.update(100);
+    expect(p.x[0]).toBeGreaterThan(300);
+    expect(p.y[0]).toBeLessThan(400);
+    for (let t = 0; t < 700; t += 50) p.update(50);
+    expect(p.y[0]).toBeGreaterThan(400);
+  });
+
+  it('stays put with reduced motion', () => {
+    const p = new Sparks();
+    p.spawn(300, 400, 0.2, -0.3, 24, 0.3, 0.01, 0, 0, true);
+    p.update(500);
+    expect([p.x[0], p.y[0]]).toEqual([300, 400]);
+    expect(p.rot[0]).toBeCloseTo(0.3, 6);
+  });
+});
+
+describe('Confetti', () => {
+  it('waits for its delay, falls, and retires below the sheet', () => {
+    const c = new Confetti();
+    c.spawn(100, -20, 0.5, 10, 6, 0, 0.01, 10, 0.004, 200, 0);
+    c.update(150, 1520);
+    expect(c.y[0]).toBe(-20); // still waiting
+    c.update(100, 1520);
+    expect(c.y[0]).toBeCloseTo(-20 + 0.5 * 50, 3);
+    for (let t = 0; t < 3500 && c.count > 0; t += 50) c.update(50, 1520);
+    expect(c.count).toBe(0);
+  });
+
+  it('never holds more than 90', () => {
+    const c = new Confetti();
+    for (let i = 0; i < 150; i++) c.spawn(i, 0, 0.5, 10, 6, 0, 0.01, 10, 0.004, 0, 0);
+    expect(c.count).toBe(Confetti.CAP);
   });
 });
 

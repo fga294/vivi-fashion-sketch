@@ -137,6 +137,8 @@ test('a fast scrub leaves no gaps', async ({ page }) => {
 });
 
 test('a full scrub reaches 100% progress on every band', async ({ page }) => {
+  // 342 pointer events: about 15 s in software-rendered Chromium alone, longer with every browser running.
+  test.slow();
   const errors = await setUp(page);
   await layPaper(page);
   await scrub(page, zigzag([150, 10, 450, 1490], 26), 3);

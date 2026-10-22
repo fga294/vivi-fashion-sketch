@@ -5,29 +5,32 @@ import { Loop } from '../engine/loop.ts';
 import { RubEngine, strengthFor } from '../engine/rub.ts';
 import { Sheet } from '../engine/sheet.ts';
 import { CrayonCursor } from '../fx/cursor.ts';
+import { FxLayer } from '../fx/layer.ts';
 import { ScrubFx } from '../fx/scrub.ts';
 import type { Game } from '../state.ts';
 import { announce } from './announce.ts';
-import { prefersReducedMotion } from './motion.ts';
+import { prefersReducedMotion, wiggle } from './motion.ts';
 import type { TrayView } from './tray.ts';
 
-const wiggle = (el: Element): void => {
-  if (prefersReducedMotion()) return;
-  el.animate(
-    [{ transform: 'none' }, { transform: 'rotate(-6deg)' }, { transform: 'rotate(5deg)' }, { transform: 'rotate(-3deg)' }, { transform: 'none' }],
-    { duration: 420, easing: 'ease-in-out' },
-  );
-};
+/** The crayon's scratching sound, following each stroke (the sound engine provides it). */
+export interface StrokeSound {
+  scratchStart(): void;
+  /** Stroke speed in sheet units per ms. */
+  scratchMove(speed: number): void;
+  scratchEnd(): void;
+}
 
 export interface PaperView {
   readonly sheet: Sheet;
   readonly rub: RubEngine;
   readonly loop: Loop;
+  /** The fx canvas every effect draws on. */
+  readonly fxLayer: FxLayer;
   readonly fx: ScrubFx;
   readonly cursor: CrayonCursor;
 }
 
-export function connectPaper(game: Game, tray: TrayView): PaperView {
+export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): PaperView {
   const { frame } = tray;
   const loop = new Loop();
   const sheet = new Sheet();
@@ -35,7 +38,8 @@ export function connectPaper(game: Game, tray: TrayView): PaperView {
   frame.mountSheet(sheet.element);
   let paperSeed = 1;
 
-  const fx = new ScrubFx(sheet, loop, frame.windowElement);
+  const fxLayer = new FxLayer(sheet, loop);
+  const fx = new ScrubFx(sheet, fxLayer, frame.windowElement);
   rub.onReveal = fx.revealed;
   const cursor = new CrayonCursor();
   cursor.connect(() => loop.wake());
@@ -43,6 +47,11 @@ export function connectPaper(game: Game, tray: TrayView): PaperView {
   document.body.append(cursor.element);
 
   // ---------- Paper ----------
+
+  const clack = (): void => {
+    frame.clack();
+    game.bus.emit('paper:clack', {});
+  };
 
   frame.paperButton.addEventListener('click', () => {
     if (game.phase === 'paperDown') game.liftPaper();
@@ -69,15 +78,16 @@ export function connectPaper(game: Game, tray: TrayView): PaperView {
           duration: 420,
           easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)',
         })
-        .finished.then(() => frame.clack(), () => undefined);
+        .finished.then(clack, () => undefined);
     } else {
-      window.setTimeout(() => frame.clack(), prefersReducedMotion() ? 0 : 380);
+      window.setTimeout(clack, prefersReducedMotion() ? 0 : 380);
     }
     if (game.tool === 'none') game.setTool('crayon');
     announce(fresh ? 'Paper in. Rub with the crayon.' : 'Paper back down.');
   });
 
   game.bus.on('paper:lift', () => {
+    endStroke(); // a second finger can lift the paper mid-stroke
     rub.finishSweeps(); // the outfit is always complete before the paper swings away
     cursor.hide();
     fx.settle();
@@ -86,8 +96,10 @@ export function connectPaper(game: Game, tray: TrayView): PaperView {
   });
 
   game.bus.on('paper:new', () => {
+    endStroke();
     cursor.hide();
     fx.reset();
+    fxLayer.reset();
     frame.setPaper('none');
     frame.resetProgress();
     const done = (): void => {
@@ -128,6 +140,7 @@ export function connectPaper(game: Game, tray: TrayView): PaperView {
 
   const pos = { x: 0, y: 0 };
   let active = -1;
+  let lastMove = 0;
   const el = sheet.element;
   const crayonReady = (): boolean => game.phase === 'paperDown' && game.tool === 'crayon';
   const showCursor = (e: PointerEvent): void => {
@@ -160,6 +173,8 @@ export function connectPaper(game: Game, tray: TrayView): PaperView {
     sheet.toSheet(e.clientX, e.clientY, pos);
     rub.begin(pos.x, pos.y, strengthFor(e.pointerType, e.pressure));
     fx.strokeStart(pos.x, pos.y);
+    sound.scratchStart();
+    lastMove = e.timeStamp;
     showCursor(e);
   });
 
@@ -181,20 +196,29 @@ export function connectPaper(game: Game, tray: TrayView): PaperView {
       }
     }
     fx.strokeMove(pos.x, pos.y);
-    cursor.addWear(Math.hypot(pos.x - lastX, pos.y - lastY));
+    const moved = Math.hypot(pos.x - lastX, pos.y - lastY);
+    cursor.addWear(moved);
+    sound.scratchMove(moved / Math.max(1, e.timeStamp - lastMove));
+    lastMove = e.timeStamp;
     cursor.point(e.clientX, e.clientY, e.pointerType);
   });
 
-  const end = (e: PointerEvent): void => {
-    if (e.pointerId !== active) return;
+  function endStroke(): void {
+    if (active === -1) return;
     active = -1;
     rub.end();
     fx.strokeEnd();
+    sound.scratchEnd();
+  }
+
+  const end = (e: PointerEvent): void => {
+    if (e.pointerId !== active) return;
+    endStroke();
     // A finger leaves the paper, so its crayon goes too; a mouse or pen keeps hovering.
     if (e.pointerType === 'touch' || e.type === 'pointercancel') cursor.hide(260);
   };
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
 
-  return { sheet, rub, loop, fx, cursor };
+  return { sheet, rub, loop, fxLayer, fx, cursor };
 }

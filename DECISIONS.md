@@ -87,3 +87,52 @@ Choices made where PLAN.md is silent or needed interpreting, newest phase last.
 - **How 55 fps is checked.** The `perf` project scrubs for five seconds at 4× CPU throttle with every effect running. It requires a median frame of about 16.7 ms and every whole second to hold 55 fps or more, which is the plan's "stays above 55 fps". A p95 cutoff kept failing on one-off stalls from a shared machine. The project gets two retries, because a noisy second shouldn't fail the run while a real regression fails every attempt.
 - **`?fxstats`** publishes the effect counters on `window.__viviFx`, so the tests can check caps and spawns without reaching into module internals.
 - **Rubbing tests wait for canvases to settle** (non-zero and unchanged), not for fixed times; WebKit's frame loop slows down when the whole suite runs at once.
+
+## Phase 5 — Sound and completion
+
+- **Every sound ships synthesized.** No recordings come with the game, so the giggles and Ta-da use the synthesized fallbacks. Recorded clips go in `public/sounds/giggles/` and `public/sounds/tada/` and are listed in `public/sounds/sounds.json`, like the plates. Probing for fixed file names instead would log a 404 for every missing clip.
+- **Recorded giggles are used once at least two load.** With a single clip, "never the same giggle twice in a row" is impossible, so the four synthesized voices play instead. The README asks for four or more.
+- **Giggle choice.** Each giggle is picked at random from the ones that didn't just play (`nextGiggle()` in `src/audio/sound.ts`). The last pick carries across paper placements.
+- **Four synthesized giggle voices.** Each is a "hee-hee" of 5–7 blips: 70 ms on, 40 ms off, pitch falling from about 520 to 420 Hz. The voice is a sawtooth through formant filters near 1 kHz and 2.5 kHz, with light vibrato and a breathy "h" at each blip's start. The voices differ in blip count, the shape of the fall, the loudness pattern, the exact formants and the vibrato rate. The ±8% variation shifts pitch only, never timing.
+- **The synthesized Ta-da** is a short "ta" chord, then a held "da!" chord with glockenspiel pings, a giggle and a sung "yay", about 1.8 s in all.
+- **Unlocking audio.** The `AudioContext` is created by the player's first gesture, not at load; created earlier, Chrome logs an autoplay warning. The plan says to unlock on the first `pointerdown`, but browsers count a touch as a gesture only on `pointerup`/`touchend` (a mouse counts on `pointerdown`). So the engine tries on `pointerdown`, `pointerup`, `touchend`, `keydown` and `click`, and acts only while `navigator.userActivation.isActive`. It also plays a silent one-sample buffer, which iOS needs. If iOS later suspends or interrupts the context (a call, the app backgrounded), the next tap resumes it.
+- **iPhone silent switch.** The audio session is `ambient`: the game mixes with music that is already playing, and the ring/silent switch mutes it, like most iOS games.
+- **No clipping.** Every sound goes through the master gain, then a gentle limiter (a `DynamicsCompressorNode` at −6 dB, 12:1), so a giggle over a scratch and a bead pop never clips.
+- **Mute.**
+  - The Sound bump is a toggle (`aria-pressed`). Its icon swaps to a crossed-out speaker, and its label stays "Sound", so the accessible name never changes.
+  - The setting is saved in `localStorage` through `src/storage/prefs.ts`. Every read and write is wrapped in try/catch, so blocked storage only means it isn't remembered.
+  - Turning sound back on plays a tick, so you hear that it worked.
+- **Scratch.**
+  - Pink noise through a band-pass centred on √(1800 × 3000) ≈ 2.3 kHz (Q ≈ 1.9), with a 5–8 Hz wobble of ±140 Hz. It gets slightly brighter at speed.
+  - Volume follows stroke speed, using audio-thread automation. Each pointer move sets the level and schedules a fade to silence 80 ms later. A crayon held still goes quiet by itself, with no per-frame JavaScript.
+  - The pencil's higher, quieter preset is defined; the pencils use it in phase 7.
+- **Slide and clack timing.**
+  - Plates: the swish starts when a plate starts sliding (a new `plate:slide` event), and the clack plays when it seats (`plate:place`). Plates sliding back to the tray get a softer swish.
+  - Paper: laying it swishes, and the clack plays when the window closes (`paper:clack`). Lifting gives a latch click and a swish. A new sheet swishes away.
+- **Bead pops** rise in pitch through E5, G5 and B5 as a band's beads fill. Pops that land in the same frame are spaced 70 ms apart.
+- **One owner for the fx canvas** (`src/fx/layer.ts`). The scrub effects and the celebrations both draw on the fx canvas. If each kept its own dirty rectangle, one effect's clear would erase the other's particles. The layer steps every effect, clears what was drawn last frame, and lets each one paint.
+- **Shimmer.** A soft gold light slides left to right across the band's lines, in step with the 400 ms finishing sweep that fills any gaps. It is drawn from a small, blurred image of the plates' lines (0.5 px per unit), in nine soft slices, so it costs a few small draws per frame.
+- **Outfit glow.** The same blurred image sits under the line layer and fades in and out over 1.4 s, using CSS opacity only, so the compositor does the work. "The figure's outline" is read as all of its lines.
+- **Burst.** Hearts and stars alternate, 22–32 units across, and pop in with a slight overshoot. They fly outward with an upward lift, fall under gravity and fade. Each has a darker outline so the cream and blush ones show on white paper.
+- **Confetti.** 72 pieces in blush, rose, gold, mint, sky and lilac (the last three only here). They fall from the top of the window over about 2–3 s, swaying and tumbling.
+- **Order and timing.**
+  - When a band completes, its shimmer, burst, giggle, buzz, tray hop and heart badge all start together.
+  - The outfit sequence starts 600 ms after the last band, once its shimmer is done and its giggle mostly over. The Ta-da shows for 1.5 s, then the pencil box wiggles.
+  - Lifting the paper in that 600 ms still plays the cheer and the Ta-da, but there is no glow or confetti on the lifted sheet. A new sheet cancels everything.
+- **`outfit:complete` comes from the rubbing engine.** It knows which bands this paper placement armed, so it emits once, right after the last `band:complete`.
+- **Heart badges.**
+  - A plate rubbed in full keeps a small heart for the rest of the session (not saved). Its well's label then ends "with a heart".
+  - The matching well's top plate hops even if the stack has been flipped since the plate was placed.
+- **The Ta-da lettering** is original: marker-style SVG strokes in rose with a paper-white edge and a heart for the "!" dot. It is 1.6× the window's width, centred on the window's top edge, over the wordmark bar.
+- **Reduced motion.**
+  - Off: confetti, the tray hop and the badge pop.
+  - Changed: hearts and stars appear in a ring and fade where they are; the Ta-da fades without scaling; the pencil box glows briefly instead of wiggling.
+  - Unchanged: the shimmer and the outfit glow, which are light, not movement.
+- **Buzz.** `navigator.vibrate(15)` runs only after the page has had a gesture; Chrome blocks earlier calls and logs a warning. iOS Safari has no vibrate and skips it silently.
+- **Lifting or clearing the paper ends a stroke in progress.** Before this, a second finger tapping Lift mid-stroke left the crayon drawing on the lifted sheet.
+- **Testing sound.**
+  - With `?fxstats`, the sound engine publishes a log of every sound requested: name, what it was for, variant, pitch, and whether it was audible.
+  - The engine, the celebration counters and the synth voices sit on `window.__viviFx`.
+  - The tests render each synthesized giggle offline with `OfflineAudioContext` and measure the result: blip count, length and spacing, pitch by autocorrelation, and peak level.
+  - Real iOS still needs a hand check: the first tap, the silent switch, and coming back from the background.
+- **The full-scrub rubbing test is marked slow.** It sends 342 pointer events: about 15 s in software-rendered Chromium on its own (unchanged from phase 4), and up to 30 s with every browser running at once.

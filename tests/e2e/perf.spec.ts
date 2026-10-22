@@ -74,11 +74,28 @@ test('frame rate while scrubbing', async ({ page }, info) => {
     `[perf] ${info.project.name}: median ${stats.median.toFixed(1)} ms, p95 ${stats.p95.toFixed(1)} ms, ` +
       `worst ${stats.worst.toFixed(1)} ms, slowest second ${stats.slowestSecondFps} fps, over ${stats.frames} frames`,
   );
-  // The effects really ran during the measurement.
-  const fx = await page.evaluate(() => (window as unknown as { __viviFx: { stats: { crumbsSpawned: number; glintsSpawned: number; nudgeFrames: number } } }).__viviFx.stats);
+  // The effects really ran during the measurement: scrub effects, every band's completion
+  // (shimmer, burst) and the outfit's confetti, with the scratch sound playing throughout.
+  type Published = {
+    __viviFx: {
+      stats: { crumbsSpawned: number; glintsSpawned: number; nudgeFrames: number };
+      celebrate: { stats: { bursts: number; outfits: number; shimmerFrames: number } };
+      sound: { state: string; log: { name: string; audible: boolean }[] };
+    };
+  };
+  const fx = await page.evaluate(() => {
+    const w = (window as unknown as Published).__viviFx;
+    return { ...w.stats, ...w.celebrate.stats, audio: w.sound.state, scratches: w.sound.log.filter((e) => e.name === 'scratch' && e.audible).length };
+  });
+  console.log(`[perf] ${info.project.name}: ${fx.bursts} bands completed, ${fx.outfits} outfit, audio ${fx.audio}`);
   expect(fx.crumbsSpawned).toBeGreaterThan(0);
   expect(fx.glintsSpawned).toBeGreaterThan(0);
   expect(fx.nudgeFrames).toBeGreaterThan(0);
+  expect(fx.bursts).toBe(3);
+  expect(fx.outfits).toBe(1);
+  expect(fx.shimmerFrames).toBeGreaterThan(0);
+  expect(fx.audio).toBe('running');
+  expect(fx.scratches).toBe(1);
   // Typically 60 fps (a frame every 16.7 ms), and every second of the scrub stays above 55 fps.
   expect(stats.median).toBeLessThan(17.5);
   expect(stats.slowestSecondFps).toBeGreaterThanOrEqual(55);

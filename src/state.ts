@@ -55,11 +55,15 @@ export interface GameEvents {
   'plate:flip': { readonly kind: PlateKind; readonly plate: PlateArt };
   'plate:place': { readonly plate: FigurePlate; readonly removed: readonly FigurePlate[] };
   'plate:remove': { readonly plate: FigurePlate };
+  /** A plate starts sliding into the frame, or back to its well. */
+  'plate:slide': { readonly to: 'frame' | 'tray' };
   /** Someone tried to change plates while the paper is down. */
   'plate:locked': Record<string, never>;
   /** Paper laid in the frame; `fresh` is false when laid back after a lift. */
   'paper:lay': { readonly fresh: boolean };
   'paper:lift': Record<string, never>;
+  /** The frame's window closes over the laid paper. */
+  'paper:clack': Record<string, never>;
   /** The sheet is cleared and taken out of the frame. */
   'paper:new': Record<string, never>;
   'tool:change': { readonly tool: Tool };
@@ -67,6 +71,8 @@ export interface GameEvents {
   'band:progress': { readonly band: PlateBand; readonly progress: number };
   /** A plate reached 90% and finishes itself. Once per band per paper placement. */
   'band:complete': { readonly band: PlateBand };
+  /** Every band placed under this paper placement is complete. Once per placement. */
+  'outfit:complete': Record<string, never>;
   /** A progress bead filled (at 30%, 60% or 90%); `count` is how many are now filled. */
   'bead:fill': { readonly band: SlotBand; readonly count: number };
 }

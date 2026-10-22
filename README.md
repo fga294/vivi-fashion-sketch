@@ -2,7 +2,7 @@
 
 A browser game in the spirit of the classic rub-and-colour fashion design kits: slot head, torso and legs plates into a tracing frame, rub a crayon over the paper to reveal the outfit, then colour it in. See `PLAN.md` for the full design and `DECISIONS.md` for choices made along the way.
 
-Status: **phase 4 of 9** (scrub animations: crayon cursor, wax crumbs, line twinkles, paper nudge, bead bounce).
+Status: **phase 5 of 9** (sound and completion: scratch and tray sounds, giggles, shimmer and burst per band, the outfit's Ta-da).
 
 ## Develop
 
@@ -17,12 +17,24 @@ npm run dev          # http://localhost:5173
 npm test             # Vitest unit tests (includes every plate check)
 npm run check:plates # validate the plate art on its own, with a readable report
 npx playwright install chromium webkit   # once
-npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, frame rate
+npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, effects, sound, frame rate
 ```
 
-Open the game with `?fxstats` to publish the scrub-effect counters (crumbs and twinkles spawned and alive, nudge and rattle frames) on `window.__viviFx`; the effect tests read them.
+Open the game with `?fxstats` to publish its counters on `window.__viviFx`; the effect and sound tests read them:
+
+- the scrub effects (crumbs and twinkles spawned and alive, nudge and rattle frames)
+- the celebrations (bursts, shimmer frames, confetti)
+- the sound engine (its state and a log of every sound requested)
+- the synth voices
 
 The frame-rate check (`tests/e2e/perf.spec.ts`) runs last and alone, in Chromium with GPU canvases and the CPU slowed 4×. Headless browsers draw canvases without a GPU, so their frame times say little about a device. Check a real iPad too: open the game in Safari, connect Safari's Web Inspector (Develop menu), record a Timeline while scrubbing, and look for 60 fps.
+
+Check sound on a real iPhone or iPad too:
+
+1. Load the game with the ring/silent switch off silent.
+2. Tap a plate stack. You should hear a tick straight away.
+3. Rub until a band completes. It should giggle once.
+4. Switch to another app and back, then tap again. Sound should come back.
 
 The e2e run builds the app and saves screenshots to `test-results/screens/`.
 
@@ -49,6 +61,22 @@ Every plate is an SVG in `public/plates/` listed in `public/plates/plates.json`.
    ```
 
 5. Run `npm run check:plates`. It names any rule a plate breaks and checks every pairing that can meet in the frame.
+
+## Adding recorded giggles
+
+Every sound is synthesized, so the game works with no audio files. Real giggles sound far better, and any you add replace the synthesized ones:
+
+1. Record four or more short giggles, plus one longer giggle-and-cheer for the finished outfit. A phone recording at home works well: a quiet room, one giggle per clip, with the silence trimmed. You can also use clips whose licence allows it.
+2. Save them as mono `.mp3`, each under 60 KB. At 64 kbps that is about 7 seconds. For example: `ffmpeg -i giggle.wav -ac 1 -b:a 64k giggle-1.mp3`.
+3. Put the giggles in `public/sounds/giggles/` and the cheer in `public/sounds/tada/`, then list them in `public/sounds/sounds.json`:
+
+   ```json
+   { "giggles": ["giggles/giggle-1.mp3", "giggles/giggle-2.mp3", "giggles/giggle-3.mp3", "giggles/giggle-4.mp3"], "tada": ["tada/cheer.mp3"] }
+   ```
+
+4. Add each clip, its source and its licence to `CREDITS.md`.
+
+Clips load after the player's first tap. The game uses the recorded giggles once at least two of them load, picks a different one each time, and varies the pitch by up to ±8%. The e2e tests check that every listed clip exists, is an `.mp3` and is under 60 KB.
 
 ## Build
 

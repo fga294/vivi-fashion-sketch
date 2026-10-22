@@ -292,6 +292,27 @@ button {
   pointer-events: none;
 }
 
+/* A plate rubbed in full keeps a small heart, like a sticker. */
+.plate__badge {
+  position: absolute;
+  top: 5%;
+  right: 4%;
+  z-index: 1;
+  width: clamp(14px, 16%, 24px);
+  height: auto;
+  fill: var(--plate-rose);
+  stroke: var(--paper);
+  stroke-width: 2.4px;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1px rgba(80, 45, 35, 0.35));
+  pointer-events: none;
+}
+
+.tone-rose .plate__badge {
+  fill: var(--plate-blush);
+  stroke: var(--paper);
+}
+
 /* The well's plate while its ghost is being dragged. */
 .plate.is-source {
   opacity: 0.45;

@@ -17,6 +17,7 @@ const ICONS = {
     'M16.5 9 C18 10.5 18 13.5 16.5 15',
     'M19 6.5 C22 9.5 22 14.5 19 17.5',
   ],
+  soundOff: ['M4 9.5 H8 L13 5 V19 L8 14.5 H4 Z', 'M16.5 9.5 L21 14.5', 'M21 9.5 L16.5 14.5'],
 } as const;
 
 export type IconName = keyof typeof ICONS;

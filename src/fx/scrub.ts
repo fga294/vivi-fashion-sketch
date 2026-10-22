@@ -2,12 +2,12 @@
 // nudging against the stroke, and the frame window rattling on very fast scrubs.
 // Everything runs in the shared frame loop and allocates nothing per frame.
 
-import type { Loop } from '../engine/loop.ts';
 import { mulberry32 } from '../engine/random.ts';
 import { CRAYON_WAX } from '../engine/rub.ts';
 import type { Sheet } from '../engine/sheet.ts';
 import { prefersReducedMotion } from '../ui/motion.ts';
-import { Bounds, Crumbs, Glints } from './particles.ts';
+import type { Effect, FxLayer } from './layer.ts';
+import { Crumbs, Glints, type Bounds } from './particles.ts';
 
 /** At most this many crumbs a frame, at this stroke speed (units/ms) or faster. */
 const CRUMBS_PER_FRAME = 4;
@@ -32,7 +32,7 @@ export interface FxStats {
   rattleFrames: number;
 }
 
-export class ScrubFx {
+export class ScrubFx implements Effect {
   readonly crumbs = new Crumbs();
   readonly glints = new Glints();
   readonly stats: FxStats = {
@@ -46,12 +46,11 @@ export class ScrubFx {
     rattleFrames: 0,
   };
   private readonly sheet: Sheet;
-  private readonly loop: Loop;
+  private readonly fx: FxLayer;
   private readonly frameWindow: HTMLElement;
   private readonly rnd = mulberry32(5);
-  private readonly drawn = new Bounds();
-  private readonly drawnLast = new Bounds();
   private stroking = false;
+  private reduced = false;
   // Pointer now and at the last frame, in sheet units.
   private px = 0;
   private py = 0;
@@ -73,11 +72,11 @@ export class ScrubFx {
   private pxPerUnit = 1;
   private rattling = false;
 
-  constructor(sheet: Sheet, loop: Loop, frameWindow: HTMLElement) {
+  constructor(sheet: Sheet, fx: FxLayer, frameWindow: HTMLElement) {
     this.sheet = sheet;
-    this.loop = loop;
+    this.fx = fx;
     this.frameWindow = frameWindow;
-    loop.add(this.frame);
+    fx.add(this);
   }
 
   strokeStart(x: number, y: number): void {
@@ -85,7 +84,7 @@ export class ScrubFx {
     this.px = this.fx0 = x;
     this.py = this.fy0 = y;
     this.pxPerUnit = this.sheet.element.getBoundingClientRect().width / 600 || 1;
-    this.loop.wake();
+    this.fx.wake();
   }
 
   strokeMove(x: number, y: number): void {
@@ -95,7 +94,7 @@ export class ScrubFx {
 
   strokeEnd(): void {
     this.stroking = false;
-    this.loop.wake();
+    this.fx.wake();
   }
 
   /** A line sample just got revealed: maybe twinkle there (reservoir sampling keeps them spread out). */
@@ -113,7 +112,6 @@ export class ScrubFx {
     this.crumbs.clear();
     this.glints.clear();
     this.candidateCount = this.candidatesSeen = 0;
-    this.drawnLast.reset();
     this.settle();
   }
 
@@ -125,10 +123,10 @@ export class ScrubFx {
     this.rattling = false;
   }
 
-  private readonly frame = (now: number): boolean => {
+  step(now: number): boolean {
     const dt = this.t ? Math.min(50, now - this.t) : 16.7;
     this.t = now;
-    const reduced = prefersReducedMotion();
+    const reduced = (this.reduced = prefersReducedMotion());
 
     // Stroke velocity over this frame.
     let speed = 0;
@@ -181,27 +179,14 @@ export class ScrubFx {
     this.glints.update(dt);
     this.stats.maxCrumbsAlive = Math.max(this.stats.maxCrumbsAlive, this.crumbs.count);
     this.stats.maxGlintsAlive = Math.max(this.stats.maxGlintsAlive, this.glints.count);
-    this.draw(reduced);
     const springing = this.paperResponse(speed, dirx, diry, reduced);
 
-    return this.stroking || this.crumbs.count > 0 || this.glints.count > 0 || !this.drawnLast.empty || springing;
-  };
+    return this.stroking || this.crumbs.count > 0 || this.glints.count > 0 || springing;
+  }
 
-  /** Redraw the fx layer, clearing only what was drawn last frame. */
-  private draw(reduced: boolean): void {
-    if (this.crumbs.count === 0 && this.glints.count === 0 && this.drawnLast.empty) return;
-    const ctx = this.sheet.layer('fx');
-    const s = this.sheet.scale;
-    ctx.setTransform(s, 0, 0, s, 0, 0);
-    if (!this.drawnLast.empty) {
-      const b = this.drawnLast;
-      ctx.clearRect(b.x0 - 1, b.y0 - 1, b.x1 - b.x0 + 2, b.y1 - b.y0 + 2);
-    }
-    this.drawn.reset();
-    this.crumbs.draw(ctx, CRAYON_WAX, this.drawn);
-    this.glints.draw(ctx, reduced, this.drawn);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.drawnLast.copy(this.drawn);
+  paint(ctx: CanvasRenderingContext2D, bounds: Bounds): void {
+    this.crumbs.draw(ctx, CRAYON_WAX, bounds);
+    this.glints.draw(ctx, this.reduced, bounds);
   }
 
   /** The paper nudges against the stroke and springs back; very fast scrubs rattle the window. */
