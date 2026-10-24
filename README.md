@@ -2,7 +2,7 @@
 
 A browser game in the spirit of the classic rub-and-colour fashion design kits: slot head, torso and legs plates into a tracing frame, rub a crayon over the paper to reveal the outfit, then colour it in. See `PLAN.md` for the full design and `DECISIONS.md` for choices made along the way.
 
-Status: **phase 5 of 9** (sound and completion: scratch and tray sounds, giggles, shimmer and burst per band, the outfit's Ta-da).
+Status: **phase 6 of 9** (pattern plates: tuck a texture under the frame and rub it on, four rubbing crayons, and Stay inside, which keeps a pattern within the garment it starts in).
 
 ## Develop
 
@@ -17,7 +17,7 @@ npm run dev          # http://localhost:5173
 npm test             # Vitest unit tests (includes every plate check)
 npm run check:plates # validate the plate art on its own, with a readable report
 npx playwright install chromium webkit   # once
-npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, effects, sound, frame rate
+npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, effects, sound, patterns, frame rate
 ```
 
 Open the game with `?fxstats` to publish its counters on `window.__viviFx`; the effect and sound tests read them:
@@ -26,6 +26,13 @@ Open the game with `?fxstats` to publish its counters on `window.__viviFx`; the 
 - the celebrations (bursts, shimmer frames, confetti)
 - the sound engine (its state and a log of every sound requested)
 - the synth voices
+- the game state and the Stay inside helper (`stayInside.clipAt(x, y)` gives the area a stroke starting there would stay in)
+
+**Stay inside** is on by default; its switch arrives with the settings panel in phase 8. To try it off now, run this in the browser console and reload:
+
+```js
+localStorage.setItem('vivi-fashion-dresses:prefs', JSON.stringify({ stayInside: false }))
+```
 
 The frame-rate check (`tests/e2e/perf.spec.ts`) runs last and alone, in Chromium with GPU canvases and the CPU slowed 4×. Headless browsers draw canvases without a GPU, so their frame times say little about a device. Check a real iPad too: open the game in Safari, connect Safari's Web Inspector (Develop menu), record a Timeline while scrubbing, and look for 60 fps.
 
@@ -54,13 +61,14 @@ Every plate is an SVG in `public/plates/` listed in `public/plates/plates.json`.
 
 2. Follow the authoring rules. Use strokes only: `fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"` on the root `<svg>`, and no fills, transforms, styles, text or images. The root also carries `data-band`, `data-name` and a `<title>`. Only `path`, `circle`, `ellipse`, `line`, `polyline`, `polygon` and `rect` are drawn.
 3. Meet the seams exactly. The neck lines cross y = 250 at x = 282 and 318, and the waist lines cross y = 570 at x = 258 and 342. A centre-front line may also cross the waist at x = 300. Nothing else may cross a seam or come within 3 units of one, so arms bend to keep hands in the torso band. Feet finish by y = 1470, and below y = 1400 everything stays within x = 210–390. Pattern lines that touch a tile edge must continue from the opposite edge.
-4. Add a row to `plates.json`:
+4. Mark detail lines with `data-detail=""`: lines that sit inside one garment or body part rather than bounding it, such as pleats, stripes, tiers, pockets, buttons, cuffs, hair strands and the eyes, nose and mouth. Stay inside keeps a pattern within the remaining outline lines, so a pattern started on a pleated skirt covers the whole skirt and stops at its hem. Every garment's outline must be closed (gaps under 2 units are fine), or Stay inside treats the garment as open space and lets the pattern go anywhere.
+5. Add a row to `plates.json`:
 
    ```json
    { "id": "head-my-new-plate", "band": "head", "name": "My new plate", "file": "heads/my-new-plate.svg" }
    ```
 
-5. Run `npm run check:plates`. It names any rule a plate breaks and checks every pairing that can meet in the frame.
+6. Run `npm run check:plates`. It names any rule a plate breaks and checks every pairing that can meet in the frame. Then run `npm test`: in every combination of plates, the face, the top garment and the bottom garment must each be one closed area of a sensible size. A leak or an unmarked pleat fails here, naming the plates.
 
 ## Adding recorded giggles
 

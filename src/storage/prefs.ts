@@ -1,12 +1,14 @@
 // Player settings in localStorage. Every read and write is wrapped, so private
 // browsing or blocked storage just means settings don't stick. The settings
-// panel (phase 8) adds volume, Peek, Stay inside and reduced motion.
+// panel (phase 8) shows Stay inside and adds volume, Peek and reduced motion.
 
 export interface Prefs {
   readonly sound: boolean;
+  /** Pattern strokes stay inside the closed area they start in. */
+  readonly stayInside: boolean;
 }
 
-export const DEFAULT_PREFS: Prefs = { sound: true };
+export const DEFAULT_PREFS: Prefs = { sound: true, stayInside: true };
 
 const KEY = 'vivi-fashion-dresses:prefs';
 
@@ -26,7 +28,11 @@ export function readPrefs(store: Store | null = localStore()): Prefs {
     const raw = store?.getItem(KEY);
     if (!raw) return DEFAULT_PREFS;
     const saved = JSON.parse(raw) as Partial<Record<keyof Prefs, unknown>>;
-    return { sound: typeof saved.sound === 'boolean' ? saved.sound : DEFAULT_PREFS.sound };
+    const flag = (key: keyof Prefs): boolean => {
+      const v = saved?.[key];
+      return typeof v === 'boolean' ? v : DEFAULT_PREFS[key];
+    };
+    return { sound: flag('sound'), stayInside: flag('stayInside') };
   } catch {
     return DEFAULT_PREFS;
   }

@@ -1,10 +1,21 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 // Frame rate while scrubbing, with every scrub effect running (phase 3: 60 fps;
-// phase 4: above 55 fps with effects). Runs as its own Playwright project after
-// every other project, so no other test competes for the CPU.
+// phase 4: above 55 fps with effects), and while rubbing a pattern clipped by Stay
+// inside (phase 6). Runs as its own Playwright project after every other project,
+// one test at a time, so nothing else competes for the CPU.
 
-test('frame rate while scrubbing', async ({ page }, info) => {
+test.describe.configure({ mode: 'serial' });
+
+interface FrameStats {
+  frames: number;
+  median: number;
+  p95: number;
+  worst: number;
+  slowestSecondFps: number;
+}
+
+async function setUp(page: Page): Promise<void> {
   await page.goto('/?fxstats');
   await expect(page.locator('.well--head .plate')).toBeVisible();
   for (const kind of ['head', 'torso', 'legs']) {
@@ -14,12 +25,19 @@ test('frame rate while scrubbing', async ({ page }, info) => {
   }
   await page.locator('.paper-btn').click();
   await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
-  // Slow the CPU 4×, roughly an iPad 9th gen against a laptop.
+}
+
+/**
+ * A fast, kid-like scrub at 4× CPU throttle (roughly an iPad 9th gen against a
+ * laptop): ~90 units a frame back and forth, drifting down the sheet, for 300 frames.
+ * The stroke starts at `start` (sheet units).
+ */
+async function measureScrub(page: Page, start: readonly [number, number]): Promise<FrameStats> {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   const stats = await page.evaluate(
-    () =>
-      new Promise<{ frames: number; median: number; p95: number; worst: number; slowestSecondFps: number }>((resolve) => {
+    ([sx, sy]) =>
+      new Promise<FrameStats>((resolve) => {
         const sheet = document.querySelector<HTMLElement>('.sheet')!;
         const r = sheet.getBoundingClientRect();
         const send = (type: string, x: number, y: number): void => {
@@ -39,12 +57,11 @@ test('frame rate while scrubbing', async ({ page }, info) => {
         const stamps: number[] = [];
         let last = 0;
         let i = 0;
-        send('pointerdown', 150, 60);
+        send('pointerdown', sx, sy);
         const step = (now: number): void => {
           if (last) gaps.push(now - last);
           last = now;
           stamps.push(now);
-          // A fast, kid-like scrub: ~90 units a frame back and forth, drifting down the sheet.
           const x = 150 + Math.abs(((i * 90) % 600) - 300);
           const y = 60 + ((i * 7) % 1380);
           send('pointermove', x, y);
@@ -68,12 +85,24 @@ test('frame rate while scrubbing', async ({ page }, info) => {
         };
         requestAnimationFrame(step);
       }),
+    start,
   );
-  info.annotations.push({ type: 'frame-times', description: `${info.project.name}: ${JSON.stringify(stats)}` });
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  return stats;
+}
+
+function report(info: { project: { name: string }; title: string; annotations: { type: string; description?: string }[] }, stats: FrameStats): void {
+  info.annotations.push({ type: 'frame-times', description: `${info.title}: ${JSON.stringify(stats)}` });
   console.log(
-    `[perf] ${info.project.name}: median ${stats.median.toFixed(1)} ms, p95 ${stats.p95.toFixed(1)} ms, ` +
+    `[perf] ${info.title}: median ${stats.median.toFixed(1)} ms, p95 ${stats.p95.toFixed(1)} ms, ` +
       `worst ${stats.worst.toFixed(1)} ms, slowest second ${stats.slowestSecondFps} fps, over ${stats.frames} frames`,
   );
+}
+
+test('frame rate while scrubbing', async ({ page }, info) => {
+  await setUp(page);
+  const stats = await measureScrub(page, [150, 60]);
+  report(info, stats);
   // The effects really ran during the measurement: scrub effects, every band's completion
   // (shimmer, burst) and the outfit's confetti, with the scratch sound playing throughout.
   type Published = {
@@ -87,7 +116,7 @@ test('frame rate while scrubbing', async ({ page }, info) => {
     const w = (window as unknown as Published).__viviFx;
     return { ...w.stats, ...w.celebrate.stats, audio: w.sound.state, scratches: w.sound.log.filter((e) => e.name === 'scratch' && e.audible).length };
   });
-  console.log(`[perf] ${info.project.name}: ${fx.bursts} bands completed, ${fx.outfits} outfit, audio ${fx.audio}`);
+  console.log(`[perf] ${info.title}: ${fx.bursts} bands completed, ${fx.outfits} outfit, audio ${fx.audio}`);
   expect(fx.crumbsSpawned).toBeGreaterThan(0);
   expect(fx.glintsSpawned).toBeGreaterThan(0);
   expect(fx.nudgeFrames).toBeGreaterThan(0);
@@ -97,6 +126,24 @@ test('frame rate while scrubbing', async ({ page }, info) => {
   expect(fx.audio).toBe('running');
   expect(fx.scratches).toBe(1);
   // Typically 60 fps (a frame every 16.7 ms), and every second of the scrub stays above 55 fps.
+  expect(stats.median).toBeLessThan(17.5);
+  expect(stats.slowestSecondFps).toBeGreaterThanOrEqual(55);
+});
+
+test('frame rate while rubbing a pattern kept inside the skirt', async ({ page }, info) => {
+  await setUp(page);
+  await page.locator('.well--pattern .stack').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.tucked')).toBeVisible();
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'));
+  // Starting inside the skirt, so Stay inside clips every batch of the whole-sheet scrub.
+  const stats = await measureScrub(page, [300, 800]);
+  report(info, stats);
+  const clip = await page.evaluate(() => {
+    const w = window as unknown as { __viviFx: { stayInside: { clipAt(x: number, y: number): { area: number } | null } } };
+    return w.__viviFx.stayInside.clipAt(300, 800)?.area ?? 0;
+  });
+  expect(clip).toBeGreaterThan(20000); // the whole skirt, not one pleat
   expect(stats.median).toBeLessThan(17.5);
   expect(stats.slowestSecondFps).toBeGreaterThanOrEqual(55);
 });

@@ -1,6 +1,7 @@
-import { BANDS, SHEET, slotsFilledBy, SLOT_BANDS, type PlateBand, type SlotBand } from '../art/bands.ts';
-import { sheetArt, toneOf } from '../art/emboss.ts';
+import { BANDS, PATTERN_TILE, SHEET, slotsFilledBy, SLOT_BANDS, type PlateBand, type SlotBand } from '../art/bands.ts';
+import { reliefArt, sheetArt, toneOf } from '../art/emboss.ts';
 import { GUIDE_ART } from '../art/guide.ts';
+import type { PlateArt } from '../art/plates.ts';
 import type { Slots } from '../state.ts';
 import { h, pathsSvg, s } from './dom.ts';
 import { icon, type IconName } from './icons.ts';
@@ -65,8 +66,8 @@ export interface FrameView {
   placedFace(band: PlateBand): HTMLElement | null;
   /** Whether a dragged plate let go at (x, y) lands in the frame. */
   accepts(x: number, y: number): boolean;
-  /** Glow the slot a dragged plate would land in, or clear it. */
-  highlight(band: PlateBand | null): void;
+  /** Glow the slot a dragged plate would land in (the whole window for a pattern), or clear it. */
+  highlight(band: PlateBand | 'all' | null): void;
   /** Called when the player taps a placed plate to take it out. */
   onTakeOut(fn: (band: PlateBand) => void): void;
   /** Lays, lifts and re-lays the paper; its icon and label follow the paper state. */
@@ -85,6 +86,12 @@ export interface FrameView {
   readonly windowElement: HTMLElement;
   /** Add something that floats over the window and frame edges (the Ta-da). */
   mountOverlay(el: HTMLElement): void;
+  /** The active pattern plate, tucked under the window's left edge; tapping it puts it away. */
+  readonly tucked: HTMLButtonElement;
+  /** Show a pattern plate tucked under the window's edge, or none. */
+  tuck(plate: PlateArt | null): void;
+  /** Where a tucked plate rests (shown or not), and how far (px) it reaches under the window. */
+  tuckSpot(): { readonly rect: DOMRect; readonly under: number };
 }
 
 /** The tracing frame: wordmark bar, the 1 : 2.5 window with its three band slots, and progress bead sockets. */
@@ -125,7 +132,9 @@ export function buildFrame(): FrameView {
   };
   showPaperButton('none');
 
-  const stage = h('div', { class: 'frame__stage' }, window_, beads, paperButton);
+  // Before the window in the stage, so the window's edge covers the part tucked under it.
+  const tucked = h('button', { type: 'button', class: 'tucked', hidden: true });
+  const stage = h('div', { class: 'frame__stage' }, tucked, window_, beads, paperButton);
   const element = h(
     'section',
     { class: 'frame', 'aria-label': 'Tracing frame' },
@@ -178,7 +187,10 @@ export function buildFrame(): FrameView {
 
     highlight(band) {
       target.hidden = band === null;
-      if (band) placeBand(target, band);
+      if (band === 'all') {
+        target.style.top = '0';
+        target.style.height = '100%';
+      } else if (band) placeBand(target, band);
     },
 
     onTakeOut(fn) {
@@ -239,6 +251,37 @@ export function buildFrame(): FrameView {
 
     mountOverlay(el) {
       stage.append(el);
+    },
+
+    tucked,
+
+    tuck(plate) {
+      if (!plate) {
+        tucked.hidden = true;
+        tucked.replaceChildren();
+        tucked.removeAttribute('aria-label');
+        return;
+      }
+      // Two and a half tiles across: the texture shows bigger than in the well.
+      const art = reliefArt(plate);
+      art.setAttribute('viewBox', `0 0 ${PATTERN_TILE * 2.5} ${PATTERN_TILE}`);
+      tucked.replaceChildren(h('span', { class: 'tucked__plate tone-blush', 'data-plate': plate.id }, art));
+      tucked.setAttribute('aria-label', `${plate.name} pattern, under the frame. Put away`);
+      tucked.hidden = false;
+    },
+
+    tuckSpot() {
+      const shown = !tucked.hidden;
+      if (!shown) {
+        tucked.style.visibility = 'hidden';
+        tucked.hidden = false;
+      }
+      const rect = tucked.getBoundingClientRect();
+      if (!shown) {
+        tucked.hidden = true;
+        tucked.style.removeProperty('visibility');
+      }
+      return { rect, under: Math.max(0, rect.right - window_.getBoundingClientRect().left) };
     },
 
     resetProgress() {

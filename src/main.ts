@@ -10,6 +10,7 @@ import { announcer } from './ui/announce.ts';
 import { connectCompletion } from './ui/completion.ts';
 import { connectPlates } from './ui/controller.ts';
 import { connectPaper } from './ui/paper.ts';
+import { connectPatterns } from './ui/patterns.ts';
 import { connectSound } from './ui/sounds.ts';
 import { buildTray } from './ui/tray.ts';
 
@@ -17,7 +18,8 @@ const app = document.getElementById('app');
 if (!app) throw new Error('Vivi Fashion Dresses: #app element missing from index.html');
 
 // Sound wakes on the player's first tap, even one made while the plates are still loading.
-const sound = new SoundEngine({ muted: !readPrefs().sound, soundsDir: `${import.meta.env.BASE_URL}sounds/` });
+const prefs = readPrefs();
+const sound = new SoundEngine({ muted: !prefs.sound, soundsDir: `${import.meta.env.BASE_URL}sounds/` });
 sound.listen();
 
 // The tray paints straight away; the plates fill the wells once they load.
@@ -30,6 +32,7 @@ const game = new Game(await loadPlates().catch((err: unknown) => {
 }));
 connectPlates(game, tray);
 const paper = connectPaper(game, tray, sound);
+connectPatterns(game, paper, prefs.stayInside);
 connectSound(game, tray, sound);
 const celebrate = connectCompletion(game, tray, paper, sound);
 
@@ -38,6 +41,16 @@ if (import.meta.env.DEV) Object.assign(window, { vivi: { game, tray, paper, soun
 // voices are published too, so tests can render them offline and measure them.
 if (new URLSearchParams(location.search).has('fxstats')) {
   Object.assign(window, {
-    __viviFx: { stats: paper.fx.stats, crumbs: paper.fx.crumbs, glints: paper.fx.glints, cursor: paper.cursor, sound, celebrate, synth },
+    __viviFx: {
+      stats: paper.fx.stats,
+      crumbs: paper.fx.crumbs,
+      glints: paper.fx.glints,
+      cursor: paper.cursor,
+      sound,
+      celebrate,
+      synth,
+      game,
+      stayInside: paper.stayInside,
+    },
   });
 }

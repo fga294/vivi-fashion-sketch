@@ -1,15 +1,15 @@
-import { PENCILS } from '../art/colours.ts';
+import { CRAYONS, PENCILS, type CrayonId } from '../art/colours.ts';
 import { h, s } from './dom.ts';
 import { icon, type IconName } from './icons.ts';
 
-/** The rubbing crayon: a short black wax block with a taupe paper wrapper. */
+/** A rubbing crayon: a short wax block (its colour is --wax) with a taupe paper wrapper. */
 function crayonArt(): SVGSVGElement {
   return s(
     'svg',
     { class: 'crayon__art', viewBox: '0 0 150 40', 'aria-hidden': 'true', focusable: 'false' },
     s('path', {
       d: 'M9 9 C5 9 4 11 4 14 V26 C4 29 5 31 9 31 H124 L143 23 C146 21.8 146 18.2 143 17 L124 9 Z',
-      fill: 'var(--crayon-wax)',
+      fill: 'var(--wax)',
     }),
     s('path', { d: 'M10 12.5 H121', stroke: 'rgba(255,255,255,0.16)', 'stroke-width': 2, 'stroke-linecap': 'round' }),
     s('rect', { x: 26, y: 8, width: 86, height: 24, rx: 2, fill: 'var(--frame-taupe)' }),
@@ -62,21 +62,28 @@ function pencilBoxArt(): SVGSVGElement {
 
 export interface Pegs {
   readonly element: HTMLElement;
-  readonly crayon: HTMLButtonElement;
+  /** The molded tray holding the four rubbing crayons. */
+  readonly crayonTray: HTMLElement;
+  readonly crayons: Readonly<Record<CrayonId, HTMLButtonElement>>;
   readonly pencils: HTMLButtonElement;
 }
 
-/** Open tray area: peg bumps with the crayon in its well and the pencil box. */
+/** Open tray area: peg bumps, the crayon tray (four rubbing crayons) and the pencil box. */
 export function buildPegs(): Pegs {
-  const crayon = h('button', { type: 'button', class: 'crayon', 'aria-label': 'Crayon', 'aria-pressed': 'false' }, crayonArt());
+  const crayons = {} as Record<CrayonId, HTMLButtonElement>;
+  for (const c of CRAYONS) {
+    const button = h(
+      'button',
+      { type: 'button', class: 'crayon', 'data-crayon': c.id, 'aria-label': `${c.name} crayon`, 'aria-pressed': 'false' },
+      crayonArt(),
+    );
+    button.style.setProperty('--wax', c.hex);
+    crayons[c.id] = button;
+  }
+  const crayonTray = h('div', { class: 'crayon-tray', role: 'group', 'aria-label': 'Crayons' }, ...CRAYONS.map((c) => crayons[c.id]));
   const pencils = h('button', { type: 'button', class: 'pencil-box', 'aria-label': 'Pencils' }, pencilBoxArt());
-  const element = h(
-    'div',
-    { class: 'pegs' },
-    h('div', { class: 'crayon-well' }, crayon),
-    h('div', { class: 'pencil-holder' }, pencils),
-  );
-  return { element, crayon, pencils };
+  const element = h('div', { class: 'pegs' }, crayonTray, h('div', { class: 'pencil-holder' }, pencils));
+  return { element, crayonTray, crayons, pencils };
 }
 
 interface Bump {

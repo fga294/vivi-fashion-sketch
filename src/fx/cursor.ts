@@ -105,6 +105,11 @@ export class CrayonCursor {
     this.wake();
   }
 
+  /** Colour the wax to match the crayon in hand. */
+  setColour(hex: string): void {
+    this.element.style.setProperty('--crayon-wax', hex);
+  }
+
   /** Wear the tip down by a rubbing distance in sheet units. */
   addWear(distance: number): void {
     this.wear = Math.min(1, this.wear + distance / WEAR_DISTANCE);

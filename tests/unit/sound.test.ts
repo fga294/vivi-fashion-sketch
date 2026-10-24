@@ -90,8 +90,17 @@ describe('prefs', () => {
   it('saves and reads back the sound setting', () => {
     const store = memory();
     expect(readPrefs(store)).toEqual(DEFAULT_PREFS);
-    expect(writePrefs({ sound: false }, store)).toEqual({ sound: false });
-    expect(readPrefs(store)).toEqual({ sound: false });
+    expect(writePrefs({ sound: false }, store)).toEqual({ ...DEFAULT_PREFS, sound: false });
+    expect(readPrefs(store)).toEqual({ ...DEFAULT_PREFS, sound: false });
+  });
+
+  it('saves Stay inside alongside sound, and keeps the other setting', () => {
+    const store = memory();
+    expect(DEFAULT_PREFS.stayInside).toBe(true);
+    writePrefs({ sound: false }, store);
+    expect(writePrefs({ stayInside: false }, store)).toEqual({ sound: false, stayInside: false });
+    store.data.set('vivi-fashion-dresses:prefs', '{"stayInside":"no","sound":false}');
+    expect(readPrefs(store)).toEqual({ sound: false, stayInside: true });
   });
 
   it('falls back to defaults on missing, corrupt or blocked storage', () => {
@@ -110,6 +119,6 @@ describe('prefs', () => {
       },
     };
     expect(readPrefs(blocked)).toEqual(DEFAULT_PREFS);
-    expect(writePrefs({ sound: false }, blocked)).toEqual({ sound: false }); // applies, just isn't saved
+    expect(writePrefs({ sound: false }, blocked)).toEqual({ ...DEFAULT_PREFS, sound: false }); // applies, just isn't saved
   });
 });

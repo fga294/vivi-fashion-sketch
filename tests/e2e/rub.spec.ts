@@ -89,7 +89,7 @@ test('laying paper slides a sheet in, picks up the crayon and locks the plates',
   const errors = await setUp(page);
   await layPaper(page);
   await expect(page.locator('.sheet')).toBeVisible();
-  await expect(page.locator('.crayon')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.crayon[data-crayon="wax"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.paper-btn')).toHaveAttribute('aria-label', 'Lift paper');
   const torso = await page.locator('.placed[data-band="torso"]').getAttribute('data-plate');
   await page.locator('.well--torso .stack').focus();
@@ -190,8 +190,8 @@ test('a new sheet clears the paper', async ({ page }) => {
 test('with the crayon put away, rubbing does nothing', async ({ page }) => {
   await setUp(page);
   await layPaper(page);
-  await page.locator('.crayon').click();
-  await expect(page.locator('.crayon')).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('.crayon[data-crayon="wax"]').click();
+  await expect(page.locator('.crayon[aria-pressed="true"]')).toHaveCount(0);
   await scrub(page, zigzag([200, 40, 400, 300]));
   expect(await ink(page, 'tone', [0, 0, 600, 1500])).toBe(0);
 });

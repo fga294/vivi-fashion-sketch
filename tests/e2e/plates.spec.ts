@@ -111,12 +111,15 @@ test('keyboard: arrows flip, Enter places the plate on top', async ({ page }) =>
   await expect(head).toBeFocused();
 });
 
-test('pattern plates flip but do not go in the frame yet', async ({ page }) => {
+test('pattern plates flip, and a double-tap tucks one under the frame instead of placing it', async ({ page }) => {
   await open(page);
+  await stack(page, 'pattern').click();
+  await page.waitForTimeout(500); // the single tap lands once the double-tap window has passed
+  await expect(stack(page, 'pattern')).toHaveAttribute('aria-label', /2 of 6/);
   await stack(page, 'pattern').dblclick();
-  await page.waitForTimeout(500);
+  await expect(page.locator('.tucked')).toBeVisible();
   await expect(page.locator('.placed')).toHaveCount(0);
-  await expect(stack(page, 'pattern')).toHaveAttribute('aria-label', /3 of 6/);
+  await expect(stack(page, 'pattern')).toHaveAttribute('aria-label', /2 of 6/);
 });
 
 test('every head/torso and torso/legs pairing joins without a gap at 400% zoom', async ({ page }, info) => {

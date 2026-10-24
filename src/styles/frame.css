@@ -286,6 +286,36 @@
   color: var(--ink-deep);
 }
 
+/* ---------- The active pattern plate, tucked under the window's left edge ---------- */
+
+/* Most of the plate sits under the window (which is later in the stage, so it covers it);
+   --tuck-show of it shows on the frame, below the paper button. Tap it to put it away. */
+.tucked {
+  --tuck-show: 54px;
+  position: absolute;
+  top: 72%;
+  left: calc(-1 * var(--tuck-show));
+  width: 125px;
+  aspect-ratio: 2.5;
+  border-radius: 7px;
+}
+
+.tucked__plate {
+  position: absolute;
+  inset: 0;
+  overflow: hidden; /* the relief art is a strip of tiles; show only the plate's share */
+  border-radius: inherit;
+  background: var(--plate-face);
+  box-shadow:
+    inset 0 1px 0 var(--plate-hi),
+    inset 0 -1px 0 var(--plate-line),
+    0 2px 4px rgba(70, 52, 32, 0.32);
+}
+
+.tucked:active .tucked__plate {
+  transform: translateX(-1px);
+}
+
 /* ---------- Ta-da! ---------- */
 
 /* Pops above the top of the frame when the whole outfit is done. */

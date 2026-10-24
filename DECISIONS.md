@@ -136,3 +136,49 @@ Choices made where PLAN.md is silent or needed interpreting, newest phase last.
   - The tests render each synthesized giggle offline with `OfflineAudioContext` and measure the result: blip count, length and spacing, pitch by autocorrelation, and peak level.
   - Real iOS still needs a hand check: the first tap, the silent switch, and coming back from the background.
 - **The full-scrub rubbing test is marked slow.** It sends 342 pointer events: about 15 s in software-rendered Chromium on its own (unchanged from phase 4), and up to 30 s with every browser running at once.
+
+## Phase 6 — Pattern plates
+
+- **Using a pattern plate.** Tap the pattern well to flip. Double-tap, drag it onto the frame, or press Enter to tuck the top plate under the frame. Using the same plate again, or tapping the tucked plate, puts it away. Using another plate swaps them, and the old one flies back to its well.
+- **Patterns work with the paper down.** Figure plates are locked while the paper is down, but a pattern plate slides in under the frame's edge, as the plan's state machine lists patterns under `paperDown`. It also works with the paper off or lifted.
+- **A new sheet puts the pattern away**, so a fresh sheet rubs the figure's lines again. Lifting and re-laying the paper keeps it.
+- **The tucked plate** sits under the window's left edge, below the paper button. 54 px of it shows (a 48 px target or more), with 2½ tiles of its texture. It lands beside the window, then slides in under the edge. Going home, it lifts out and fades into its well. With reduced motion it simply appears and disappears.
+- **While a pattern is in use, the crayon reveals only the pattern.** No figure lines appear, the bands don't progress and nothing twinkles. The wax haze, crumbs, scratch sound and paper nudge carry on.
+- **The pattern is anchored to the sheet**, so every stroke lands in registration, as with a plate fixed under the paper. Each plate's tile is drawn once at the sheet's pixel scale, rounded to whole pixels so tiles abut. It includes its neighbours' copies, so strokes that cross a tile edge carry on.
+- **Patterns, like lines, build up with each pass**, but they get no finishing sweep. A pattern stays as light or as dark as the child rubs it.
+- **The crayon tray** holds four crayons, two by two, in one molded recess:
+
+  | Crayon | Hex | Contrast on paper |
+  | --- | --- | --- |
+  | Black | `#2F2A2E` | 13.3 : 1 |
+  | Rose | `#C2496B` | 4.4 : 1 |
+  | Sky blue | `#3C80C2` | 3.9 : 1 |
+  | Mint | `#2F937A` | 3.6 : 1 |
+
+  They are deeper than their pencil namesakes, so a grainy 3-unit line still reads.
+- **Choosing a crayon.** Tapping a crayon picks it up, putting down the one in hand; tapping the crayon in hand puts it back. Laying the paper picks up the last crayon used, black at first. The cursor sprite and the crumbs take its colour, and choosing one plays a tick.
+- **Lines in colour.** The stamps carry the crayon's colour and the plates only cut them out, so lines and patterns are revealed in the chosen colour. A band's finishing sweep now fills only the gaps (it draws behind what is there) in the current colour. Lines rubbed in another crayon keep their colour.
+- **What counts as "the garment".** The plan's rule, a flood fill against the lines, would stop at every pleat, stripe and pocket: a pattern started on the pleated skirt patterned one 16–42-unit pleat. So plates now mark detail lines with `data-detail`: pleats, stripes, tiers, pockets, buttons, cuffs, hair strands and facial features. Stay inside fills against the remaining outline lines, so a pattern covers the whole skirt and stops at its hem. A plate without marks behaves as the plan says, with every line a wall.
+- **The starter art changed in three ways for this.**
+  - Every figure plate's details are marked.
+  - Five plates had gaps that let a garment leak into the open sheet. The puff blouse's right side and the curly puff's face were open, and the tennis skirt's legs and the sailor top's arms stopped short of the lines they meet. Each now joins.
+  - The tiered maxi's tier seams also closed its stepped sides. They became details, with two short outline pieces added where the sides step out.
+  - A unit test checks all 234 combinations (216 three-plate outfits and 18 top-plate outfits). In each, the face, the top garment and the bottom garment must each be one closed area of a sensible size. The seams are unchanged and still pass `check:plates`.
+- **The walls are the lines on this sheet.** They are the plates under the paper now, plus plates rubbed under earlier placements of the same sheet (lift, swap, lay back). A plate never rubbed doesn't count. The current plates count even before they are rubbed, because Peek shows them through the paper.
+- **Walls are one cell per sheet unit**, with each 3-unit line widened to 2.5 units either side, so gaps under 2 units close. They are rasterised with plain arithmetic (each cell's distance to the line), not by drawing on a canvas and reading pixels back. That means the game and the Node unit tests see exactly the same walls.
+- **Where a stroke starts.**
+  - On a line: Stay inside uses the nearest open cell within 4 units.
+  - Outside every closed area (open space reaching the sheet's edge): the stroke isn't clipped, as the plan says.
+- **The clip is a stencil.** It cuts the wax haze as well as the pattern, so nothing the crayon lays down leaves the garment. It reaches one unit under the lines, so the pattern meets them without a paper-coloured gap.
+- **Speed.**
+  - Areas are flood-filled on first use and cached until the paper is laid again.
+  - A fill stops as soon as it reaches open space: a stroke started off the outfit costs under 1 ms.
+  - A garment's first stroke costs 2–4 ms on a laptop: the fill, then a mask at one pixel per unit.
+  - The walls (about 10 ms on a laptop) are built at a quiet moment: after the window closes over the paper, or just after a pattern is tucked.
+  - Rubbing a clipped pattern costs no more per frame than rubbing lines (median 0.3 ms of main-thread work either way).
+- **The Stay inside setting** is saved with the other preferences (on by default). Its switch arrives with the settings panel in phase 8.
+- **Testing.**
+  - `tests/e2e/patterns.spec.ts` covers the Done-when checks: a stroke that starts in the skirt and scrubs past both sides, over the blouse and over the legs leaves pattern and haze only in the skirt; with Stay inside off, the pattern goes everywhere.
+  - It also covers a stroke started off the outfit, tucking, swapping and putting away, and the crayon colours.
+  - The `perf` project gains a frame-rate test for a clipped pattern.
+  - Playwright now runs 4 workers. With the default 6 and the larger suite, WebKit page loads timed out while the machine was busy.

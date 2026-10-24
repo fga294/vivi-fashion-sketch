@@ -9,6 +9,9 @@ export default defineConfig({
   testDir: 'tests/e2e',
   outputDir: 'test-results',
   fullyParallel: true,
+  // Every test scrubs canvases drawn in software across five browsers; more workers than
+  // this starve WebKit on a 6-core laptop and turn page loads into timeouts.
+  workers: 4,
   reporter: [['list']],
   // Six browsers start at once (WebKit and GPU Chromium); cold starts can be slow.
   expect: { timeout: 10_000 },

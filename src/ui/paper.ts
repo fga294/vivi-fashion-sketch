@@ -1,7 +1,9 @@
 // Paper and rubbing: laying, lifting and re-laying the sheet, the crayon, and
 // pointer input on the paper feeding the rubbing engine.
 
+import { crayonById, CRAYONS } from '../art/colours.ts';
 import { Loop } from '../engine/loop.ts';
+import { StayInside } from '../engine/pattern.ts';
 import { RubEngine, strengthFor } from '../engine/rub.ts';
 import { Sheet } from '../engine/sheet.ts';
 import { CrayonCursor } from '../fx/cursor.ts';
@@ -28,6 +30,8 @@ export interface PaperView {
   readonly fxLayer: FxLayer;
   readonly fx: ScrubFx;
   readonly cursor: CrayonCursor;
+  /** Keeps pattern strokes inside the closed area they start in. */
+  readonly stayInside: StayInside;
 }
 
 export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): PaperView {
@@ -41,6 +45,7 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
   const fxLayer = new FxLayer(sheet, loop);
   const fx = new ScrubFx(sheet, fxLayer, frame.windowElement);
   rub.onReveal = fx.revealed;
+  const stayInside = new StayInside();
   const cursor = new CrayonCursor();
   cursor.connect(() => loop.wake());
   loop.add(cursor.frame);
@@ -122,13 +127,33 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
     if (!game.newSheet()) wiggle(frame.paperButton);
   });
 
-  // ---------- Crayon ----------
+  // ---------- Crayons ----------
 
-  tray.crayon.addEventListener('click', () => game.setTool(game.tool === 'crayon' ? 'none' : 'crayon'));
+  // Tapping a crayon picks it up (putting down the one in hand); tapping the one in hand puts it back.
+  for (const c of CRAYONS) {
+    tray.crayons[c.id].addEventListener('click', () => {
+      if (game.tool === 'crayon' && game.crayon === c.id) {
+        game.setTool('none');
+        return;
+      }
+      game.setCrayon(c.id);
+      game.setTool('crayon');
+    });
+  }
+  const showCrayons = (): void => {
+    for (const c of CRAYONS) tray.crayons[c.id].setAttribute('aria-pressed', String(game.tool === 'crayon' && game.crayon === c.id));
+  };
   game.bus.on('tool:change', ({ tool }) => {
-    tray.crayon.setAttribute('aria-pressed', String(tool === 'crayon'));
+    showCrayons();
     sheet.element.dataset['tool'] = tool;
     if (tool !== 'crayon') cursor.hide();
+  });
+  game.bus.on('crayon:change', ({ crayon }) => {
+    const { hex } = crayonById(crayon);
+    rub.setColour(hex);
+    fx.crumbColour = hex;
+    cursor.setColour(hex);
+    showCrayons();
   });
 
   // ---------- Progress ----------
@@ -160,7 +185,7 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
     if (game.phase !== 'paperDown' || active !== -1 || !e.isPrimary) return; // one stroke at a time: palms and second fingers are ignored
     e.preventDefault();
     if (game.tool !== 'crayon') {
-      wiggle(tray.crayon);
+      wiggle(tray.crayons[game.crayon]);
       return;
     }
     active = e.pointerId;
@@ -171,7 +196,8 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
     }
     sheet.measure();
     sheet.toSheet(e.clientX, e.clientY, pos);
-    rub.begin(pos.x, pos.y, strengthFor(e.pointerType, e.pressure));
+    // A pattern stroke stays in the closed area it starts in (null when Stay inside is off, or outside every area).
+    rub.begin(pos.x, pos.y, strengthFor(e.pointerType, e.pressure), rub.revealsPattern ? stayInside.clipAt(pos.x, pos.y) : null);
     fx.strokeStart(pos.x, pos.y);
     sound.scratchStart();
     lastMove = e.timeStamp;
@@ -220,5 +246,5 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
   el.addEventListener('pointerup', end);
   el.addEventListener('pointercancel', end);
 
-  return { sheet, rub, loop, fxLayer, fx, cursor };
+  return { sheet, rub, loop, fxLayer, fx, cursor, stayInside };
 }

@@ -1,3 +1,4 @@
+import type { CrayonId } from '../art/colours.ts';
 import { PLATE_KINDS, type PlateKind } from '../art/plates.ts';
 import { h } from './dom.ts';
 import { buildFrame, type FrameView } from './frame.ts';
@@ -8,7 +9,8 @@ export interface TrayView {
   readonly element: HTMLElement;
   readonly frame: FrameView;
   readonly wells: Readonly<Record<PlateKind, WellView>>;
-  readonly crayon: HTMLButtonElement;
+  readonly crayonTray: HTMLElement;
+  readonly crayons: Readonly<Record<CrayonId, HTMLButtonElement>>;
   readonly pencils: HTMLButtonElement;
   /** The bump buttons by tool id: undo, eraser, new, sketchbook, sound. */
   bump(id: string): HTMLButtonElement;
@@ -46,14 +48,15 @@ export function buildTray(): TrayView {
     'div',
     { class: 'sr-only' },
     h('p', { id: 'hint-plate' }, 'Tap for the next plate. Double-tap or drag it to the frame. Arrow keys flip, Enter places.'),
-    h('p', { id: 'hint-pattern' }, 'Tap for the next pattern.'),
+    h('p', { id: 'hint-pattern' }, 'Tap for the next pattern. Double-tap or drag it to the frame to rub it. Arrow keys flip, Enter uses it.'),
   );
 
   return {
     element: h('div', { class: 'tray' }, frame.element, drawer, bumps, hints),
     frame,
     wells,
-    crayon: pegs.crayon,
+    crayonTray: pegs.crayonTray,
+    crayons: pegs.crayons,
     pencils: pegs.pencils,
     bump: (id) => bumps.querySelector<HTMLButtonElement>(`[data-tool="${id}"]`)!,
     drawerScrolls: () => drawer.scrollWidth > drawer.clientWidth + 1,

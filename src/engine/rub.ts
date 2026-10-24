@@ -4,12 +4,17 @@
 //   lines += stamps × grain ∩ plateArt   (the raised lines, in crayon colour)
 // Wax only ever adds, so drawing straight onto these layers gives the same result
 // as PLAN.md's bakedLines + live mask, with two fewer full-size buffers.
+// With a pattern plate active, the stamps reveal its tile instead of the lines,
+// clipped to one closed area when "Stay inside" gives the stroke a clip:
+//   tone    += stamps × grain ∩ clip
+//   pattern += stamps × grain ∩ clip ∩ tile
 
 import { BANDS, type PlateBand } from '../art/bands.ts';
 import type { GameEvents, Slots, Bus } from '../state.ts';
 import { COMPLETE_AT, Coverage } from './coverage.ts';
 import { grainCanvas, grainField, waxAlpha, GRAIN_SIZE } from './grain.ts';
 import type { Loop } from './loop.ts';
+import type { RegionClip } from './pattern.ts';
 import { mulberry32 } from './random.ts';
 import type { Sheet } from './sheet.ts';
 import { StampSpacer } from './stroke.ts';
@@ -88,6 +93,8 @@ interface Sweep {
   readonly y0: number;
   readonly y1: number;
   readonly start: number;
+  /** The crayon colour the sweep finishes the lines in. */
+  readonly colour: string;
   /** Sheet x (units) revealed so far. */
   x: number;
 }
@@ -97,7 +104,15 @@ export class RubEngine {
   private readonly sheet: Sheet;
   private readonly bus: Bus<GameEvents>;
   private readonly loop: Loop;
-  private readonly stamps: HTMLCanvasElement[];
+  private readonly field: Float32Array;
+  /** Stamp shapes per crayon colour, made on first use. */
+  private readonly stampSets = new Map<string, HTMLCanvasElement[]>();
+  private stamps: HTMLCanvasElement[];
+  private crayon = CRAYON_WAX;
+  /** The active pattern plate's tile; null reveals the figure's lines. */
+  private pattern: CanvasPattern | null = null;
+  /** This stroke's "Stay inside" area; null goes wherever the crayon goes. */
+  private clip: RegionClip | null = null;
   private readonly a: CanvasRenderingContext2D;
   private readonly b: CanvasRenderingContext2D;
   private readonly grainA: CanvasPattern;
@@ -130,13 +145,41 @@ export class RubEngine {
     this.sheet = sheet;
     this.bus = bus;
     this.loop = loop;
-    const field = grainField();
-    this.grain = grainCanvas(waxAlpha(field));
-    this.stamps = Array.from({ length: STAMP_VARIANTS }, (_, i) => stampShape(sheet.scale, field, i * 37, CRAYON_WAX));
+    this.field = grainField();
+    this.grain = grainCanvas(waxAlpha(this.field));
+    this.stamps = this.stampsIn(CRAYON_WAX);
     this.a = scratch(SCRATCH);
     this.b = scratch(SCRATCH);
     this.grainA = this.b.createPattern(this.grain, 'repeat')!;
     loop.add(this.frame);
+  }
+
+  /** Change crayon. Stamps already queued keep the colour they were laid with. */
+  setColour(hex: string): void {
+    if (hex === this.crayon) return;
+    this.drain();
+    this.crayon = hex;
+    this.stamps = this.stampsIn(hex);
+  }
+
+  /** Reveal a pattern tile (backing pixels, from patternTile()) instead of the figure's lines, or go back with null. */
+  setPattern(tile: HTMLCanvasElement | null): void {
+    this.drain();
+    this.pattern = tile ? this.b.createPattern(tile, 'repeat') : null;
+    if (tile) this.sheet.layer('pattern'); // allocate now, not on the first stroke
+  }
+
+  get revealsPattern(): boolean {
+    return this.pattern !== null;
+  }
+
+  private stampsIn(colour: string): HTMLCanvasElement[] {
+    let set = this.stampSets.get(colour);
+    if (!set) {
+      set = Array.from({ length: STAMP_VARIANTS }, (_, i) => stampShape(this.sheet.scale, this.field, i * 37, colour));
+      this.stampSets.set(colour, set);
+    }
+    return set;
   }
 
   /** The bands being tracked for this paper placement, in coverage order. */
@@ -179,7 +222,10 @@ export class RubEngine {
     this.coverage?.takeChanged(this.report);
   }
 
-  begin(x: number, y: number, strength: number): void {
+  /** Start a stroke. `clip` keeps a pattern stroke inside one closed area ("Stay inside"). */
+  begin(x: number, y: number, strength: number, clip: RegionClip | null = null): void {
+    if (this.queued > 0) this.drain(); // the last stroke's final stamps keep its clip
+    this.clip = clip;
     this.alpha = stampAlpha(strength);
     this.spacer.begin(x, y);
   }
@@ -218,7 +264,7 @@ export class RubEngine {
     if (progress >= COMPLETE_AT && !this.done[i]) {
       this.done[i] = 1;
       const { y0, y1 } = BANDS[band];
-      this.sweeps.push({ band: i, y0: y0 - 2, y1: y1 + 2, start: performance.now(), x: 0 });
+      this.sweeps.push({ band: i, y0: y0 - 2, y1: y1 + 2, start: performance.now(), colour: this.crayon, x: 0 });
       this.bus.emit('band:complete', { band });
       if (this.done.every((d) => d === 1)) this.bus.emit('outfit:complete', {});
     }
@@ -233,7 +279,7 @@ export class RubEngine {
       const y = this.queue[q + 1]!;
       const rot = this.queue[q + 2]!;
       const alpha = this.queue[q + 3]!;
-      this.coverage?.stamp(x, y, rot, STAMP_W / 2, STAMP_H / 2, alpha);
+      if (!this.pattern) this.coverage?.stamp(x, y, rot, STAMP_W / 2, STAMP_H / 2, alpha);
 
       const cos = Math.cos(rot);
       const sin = Math.sin(rot);
@@ -275,17 +321,22 @@ export class RubEngine {
       const sy = y0 - this.oy;
       // Grain the batch once, in place: (stamps ∩ plateArt) × grain = (stamps × grain) ∩ plateArt.
       this.grainInto(this.a, sx, sy, w, h, x0, y0);
-      this.sheet.layer('tone').drawImage(this.a.canvas, sx, sy, w, h, x0, y0, w, h);
-      if (this.plateArt) {
-        const b = this.b;
-        b.setTransform(1, 0, 0, 1, 0, 0);
-        b.globalCompositeOperation = 'source-over';
-        b.clearRect(0, 0, w, h);
-        b.drawImage(this.a.canvas, sx, sy, w, h, 0, 0, w, h);
-        b.globalCompositeOperation = 'source-in';
-        b.drawImage(this.plateArt, x0, y0, w, h, 0, 0, w, h);
-        b.globalCompositeOperation = 'source-over';
-        this.sheet.layer('lines').drawImage(b.canvas, 0, 0, w, h, x0, y0, w, h);
+      if (this.pattern) {
+        this.flushPattern(this.pattern, sx, sy, w, h, x0, y0);
+      } else {
+        this.sheet.layer('tone').drawImage(this.a.canvas, sx, sy, w, h, x0, y0, w, h);
+        if (this.plateArt) {
+          // The stamps keep their crayon colour; the plates only cut out where they show.
+          const b = this.b;
+          b.setTransform(1, 0, 0, 1, 0, 0);
+          b.globalCompositeOperation = 'source-over';
+          b.clearRect(0, 0, w, h);
+          b.drawImage(this.a.canvas, sx, sy, w, h, 0, 0, w, h);
+          b.globalCompositeOperation = 'destination-in';
+          b.drawImage(this.plateArt, x0, y0, w, h, 0, 0, w, h);
+          b.globalCompositeOperation = 'source-over';
+          this.sheet.layer('lines').drawImage(b.canvas, 0, 0, w, h, x0, y0, w, h);
+        }
       }
     }
     this.a.setTransform(1, 0, 0, 1, 0, 0);
@@ -293,6 +344,38 @@ export class RubEngine {
     this.a.clearRect(0, 0, SCRATCH, SCRATCH);
     this.ux0 = this.uy0 = Infinity;
     this.ux1 = this.uy1 = -Infinity;
+  }
+
+  /**
+   * A pattern batch: the grained stamps, cut to this stroke's clip, go on the haze
+   * layer, then cut to the pattern tile on the pattern layer. Every step covers
+   * the whole w × h area, so it works the same whether a browser bounds
+   * compositing to the drawn image or not.
+   */
+  private flushPattern(tile: CanvasPattern, sx: number, sy: number, w: number, h: number, x0: number, y0: number): void {
+    const b = this.b;
+    const s = this.sheet.scale;
+    b.setTransform(1, 0, 0, 1, 0, 0);
+    b.globalCompositeOperation = 'source-over';
+    if (this.clip) {
+      const c = this.clip;
+      b.clearRect(0, 0, SCRATCH, SCRATCH);
+      b.drawImage(c.image, c.x * s - x0, c.y * s - y0, c.w * s, c.h * s);
+      b.globalCompositeOperation = 'source-in';
+    } else {
+      b.clearRect(0, 0, w, h);
+    }
+    b.drawImage(this.a.canvas, sx, sy, w, h, 0, 0, w, h);
+    b.globalCompositeOperation = 'source-over';
+    this.sheet.layer('tone').drawImage(b.canvas, 0, 0, w, h, x0, y0, w, h);
+    // The tile is anchored to the sheet, so every stroke lands in registration.
+    b.globalCompositeOperation = 'destination-in';
+    b.setTransform(1, 0, 0, 1, -x0, -y0);
+    b.fillStyle = tile;
+    b.fillRect(x0, y0, w, h);
+    b.setTransform(1, 0, 0, 1, 0, 0);
+    b.globalCompositeOperation = 'source-over';
+    this.sheet.layer('pattern').drawImage(b.canvas, 0, 0, w, h, x0, y0, w, h);
   }
 
   /**
@@ -309,7 +392,11 @@ export class RubEngine {
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  /** Finishing sweeps: reveal a completed band's remaining lines left to right over 400 ms. */
+  /**
+   * Finishing sweeps: reveal a completed band's remaining lines left to right over
+   * 400 ms. They draw behind what is already there, so they fill only the gaps and
+   * lines rubbed in another crayon keep their colour.
+   */
   private runSweeps(now: number): void {
     if (!this.plateArt) return;
     const s = this.sheet.scale;
@@ -328,7 +415,16 @@ export class RubEngine {
         b.clearRect(0, 0, w, h);
         b.drawImage(this.plateArt, x0, y, w, h, 0, 0, w, h);
         this.grainInto(b, 0, 0, w, h, x0, y);
-        this.sheet.layer('lines').drawImage(b.canvas, 0, 0, w, h, x0, y, w, h);
+        if (sw.colour !== CRAYON_WAX) {
+          b.globalCompositeOperation = 'source-in';
+          b.fillStyle = sw.colour;
+          b.fillRect(0, 0, w, h);
+          b.globalCompositeOperation = 'source-over';
+        }
+        const lines = this.sheet.layer('lines');
+        lines.globalCompositeOperation = 'destination-over';
+        lines.drawImage(b.canvas, 0, 0, w, h, x0, y, w, h);
+        lines.globalCompositeOperation = 'source-over';
       }
       sw.x = x0 + w < x1 ? (x0 + w) / s : to;
       if (t >= 1 && sw.x >= 600) {

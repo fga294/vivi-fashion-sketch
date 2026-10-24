@@ -71,6 +71,8 @@ export class ScrubFx implements Effect {
   private nvr = 0;
   private pxPerUnit = 1;
   private rattling = false;
+  /** Crumbs take the colour of the crayon in hand. */
+  crumbColour = CRAYON_WAX;
 
   constructor(sheet: Sheet, fx: FxLayer, frameWindow: HTMLElement) {
     this.sheet = sheet;
@@ -185,7 +187,7 @@ export class ScrubFx implements Effect {
   }
 
   paint(ctx: CanvasRenderingContext2D, bounds: Bounds): void {
-    this.crumbs.draw(ctx, CRAYON_WAX, bounds);
+    this.crumbs.draw(ctx, this.crumbColour, bounds);
     this.glints.draw(ctx, this.reduced, bounds);
   }
 

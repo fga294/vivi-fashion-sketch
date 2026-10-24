@@ -11,6 +11,7 @@ const plate = (band: PlateKind, n = 1): PlateArt => ({
   title: `${band} ${n}`,
   viewBox: '',
   paths: [],
+  outlines: [],
 });
 const fig = (band: PlateBand, n = 1): FigurePlate => plate(band, n) as FigurePlate;
 const ids = (slots: object): string[] => Object.values(slots).map((p: PlateArt) => p.id).sort();
@@ -146,5 +147,48 @@ describe('paper state machine', () => {
     game.setTool('crayon');
     game.setTool('none');
     expect(tools).toEqual(['crayon', 'none']);
+  });
+});
+
+describe('pattern plates and crayons', () => {
+  const g = (): Game => new Game([plate('head'), plate('pattern', 1), plate('pattern', 2)]);
+
+  it('tucks a pattern plate in (paper down or not), swaps it, and puts it away', () => {
+    const game = g();
+    const seen: string[] = [];
+    game.bus.on('pattern:change', ({ plate, previous }) => seen.push(`${previous?.id ?? '-'}→${plate?.id ?? '-'}`));
+    const [p1, p2] = game.stacks.pattern;
+    expect(game.usePattern(game.topOf('head')!)).toBe(false); // figure plates go in the frame instead
+    expect(game.usePattern(p1!)).toBe(true);
+    expect(game.usePattern(p1!)).toBe(false); // already in
+    game.layPaper();
+    expect(game.usePattern(p2!)).toBe(true);
+    expect(game.pattern?.id).toBe('pattern-2');
+    expect(game.usePattern(null)).toBe(true);
+    expect(game.usePattern(null)).toBe(false);
+    expect(seen).toEqual(['-→pattern-1', 'pattern-1→pattern-2', 'pattern-2→-']);
+  });
+
+  it('puts the pattern away on a new sheet, after the sheet is cleared', () => {
+    const game = g();
+    const seen: string[] = [];
+    game.bus.on('paper:new', () => seen.push('new'));
+    game.bus.on('pattern:change', ({ plate }) => seen.push(plate ? 'pattern' : 'away'));
+    game.layPaper();
+    game.usePattern(game.topOf('pattern')!);
+    game.newSheet();
+    expect(game.pattern).toBeNull();
+    expect(seen).toEqual(['pattern', 'new', 'away']);
+  });
+
+  it('starts with the black crayon and announces changes once', () => {
+    const game = g();
+    const crayons: string[] = [];
+    game.bus.on('crayon:change', ({ crayon }) => crayons.push(crayon));
+    expect(game.crayon).toBe('wax');
+    game.setCrayon('rose');
+    game.setCrayon('rose');
+    game.setCrayon('mint');
+    expect(crayons).toEqual(['rose', 'mint']);
   });
 });

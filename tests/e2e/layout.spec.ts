@@ -59,9 +59,9 @@ test('tray renders cleanly with the self-hosted font', async ({ page }, info) =>
 
 test('every control is a labelled button of at least 48 px', async ({ page }) => {
   await open(page);
-  const buttons = page.locator('button');
-  // 5 wells + crayon + pencil box + paper + 5 bumps
-  await expect(buttons).toHaveCount(13);
+  const buttons = page.locator('button:visible');
+  // 5 wells + 4 crayons + pencil box + paper + 5 bumps (the tucked pattern plate shows only when one is in use)
+  await expect(buttons).toHaveCount(16);
   for (const b of await buttons.all()) {
     await expect(b).toHaveAttribute('aria-label', /\w/);
     await b.scrollIntoViewIfNeeded();
@@ -97,7 +97,7 @@ test('landscape: frame on the left, wells on the right, all in view', async ({ p
   // Column B: top, pattern, then crayon and pencils, to the right of column A.
   const top = await box(page.locator('.well--top'));
   const pattern = await box(page.locator('.well--pattern'));
-  const crayon = await box(page.locator('.crayon'));
+  const crayon = await box(page.locator('.crayon-tray'));
   const pencils = await box(page.locator('.pencil-box'));
   expect(top.x).toBeGreaterThan(head.x + head.width);
   expect(top.y).toBeLessThan(pattern.y);

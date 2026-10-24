@@ -1,4 +1,5 @@
 import type { PlateBand, SlotBand } from './art/bands.ts';
+import type { CrayonId } from './art/colours.ts';
 import { isFigure, PLATE_KINDS, type PlateArt, type PlateKind } from './art/plates.ts';
 
 export type FigurePlate = PlateArt & { readonly band: PlateBand };
@@ -67,6 +68,10 @@ export interface GameEvents {
   /** The sheet is cleared and taken out of the frame. */
   'paper:new': Record<string, never>;
   'tool:change': { readonly tool: Tool };
+  /** A different rubbing crayon is chosen. */
+  'crayon:change': { readonly crayon: CrayonId };
+  /** A pattern plate is tucked under the frame (rubbing reveals it), or put away (null). */
+  'pattern:change': { readonly plate: PlateArt | null; readonly previous: PlateArt | null };
   /** A plate's share of revealed line samples, 0–1. */
   'band:progress': { readonly band: PlateBand; readonly progress: number };
   /** A plate reached 90% and finishes itself. Once per band per paper placement. */
@@ -115,6 +120,9 @@ export class Game {
   private current: Slots = {};
   phase: Phase = 'noPaper';
   tool: Tool = 'none';
+  crayon: CrayonId = 'wax';
+  /** The active pattern plate: while set, the crayon reveals its texture instead of the figure's lines. */
+  pattern: PlateArt | null = null;
 
   constructor(plates: readonly PlateArt[]) {
     const stacks = Object.fromEntries(PLATE_KINDS.map((k) => [k, [] as PlateArt[]])) as Record<PlateKind, PlateArt[]>;
@@ -182,7 +190,27 @@ export class Game {
     if (this.phase === 'noPaper') return false;
     this.phase = 'noPaper';
     this.bus.emit('paper:new', {});
+    this.usePattern(null); // a fresh sheet starts with the figure's lines
     return true;
+  }
+
+  /**
+   * Tuck a pattern plate under the frame, or put it away with null. Unlike figure
+   * plates this works with the paper down: the plate slides in under the frame's edge.
+   */
+  usePattern(plate: PlateArt | null): boolean {
+    if (plate && plate.band !== 'pattern') return false;
+    const previous = this.pattern;
+    if (plate?.id === previous?.id) return false;
+    this.pattern = plate;
+    this.bus.emit('pattern:change', { plate, previous });
+    return true;
+  }
+
+  setCrayon(crayon: CrayonId): void {
+    if (crayon === this.crayon) return;
+    this.crayon = crayon;
+    this.bus.emit('crayon:change', { crayon });
   }
 
   setTool(tool: Tool): void {

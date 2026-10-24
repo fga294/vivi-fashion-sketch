@@ -8,6 +8,7 @@ import type { FigurePlate, Game } from '../state.ts';
 import { announce } from './announce.ts';
 import { dragPlate, fly, ghostOf } from './flight.ts';
 import { attachGestures, type GestureHandlers } from './gestures.ts';
+import { prefersReducedMotion } from './motion.ts';
 import type { TrayView } from './tray.ts';
 
 export function connectPlates(game: Game, tray: TrayView): void {
@@ -64,6 +65,53 @@ export function connectPlates(game: Game, tray: TrayView): void {
     announce(`${plate.name} is in the frame`);
   };
 
+  // ---------- Pattern plates: tucked under the frame's edge ----------
+
+  /**
+   * Slide the pattern well's top plate under the frame's edge, sending any other
+   * pattern plate home. Doing it again with the same plate puts it away.
+   */
+  const usePattern = async (ghost: HTMLElement | null): Promise<void> => {
+    const plate = game.topOf('pattern');
+    const face = wells.pattern.face();
+    if (!plate || !face || game.pattern?.id === plate.id) {
+      ghost?.remove();
+      if (plate && game.pattern?.id === plate.id) game.usePattern(null);
+      return;
+    }
+    const g = ghost ?? ghostOf(face);
+    g.style.boxShadow = '0 2px 6px rgba(80, 45, 35, 0.2)';
+    // The ghost lands beside the window, then the plate slides in under its edge.
+    const { rect, under } = frame.tuckSpot();
+    game.bus.emit('plate:slide', { to: 'frame' });
+    await fly(g, new DOMRect(rect.left - under, rect.top, rect.width, rect.height), { duration: 340 });
+    if (game.usePattern(plate)) announce(`${plate.name} pattern. Rub to add it.`);
+    g.remove();
+  };
+
+  game.bus.on('pattern:change', ({ plate, previous }) => {
+    const { rect, under } = frame.tuckSpot();
+    if (previous) {
+      // The plate that was tucked goes back to its well and fades into the stack.
+      const ghost = ghostOf(plateFace(previous, 0), rect);
+      const well = wells.pattern;
+      game.bus.emit('plate:slide', { to: 'tray' });
+      void fly(ghost, well.face()?.getBoundingClientRect() ?? well.button.getBoundingClientRect(), { duration: 360, fade: true }).then(() =>
+        ghost.remove(),
+      );
+    }
+    frame.tuck(plate);
+    if (plate && !prefersReducedMotion()) {
+      frame.tucked.animate([{ transform: `translateX(${-under}px)` }, { transform: 'none' }], {
+        duration: 260,
+        easing: 'cubic-bezier(0.3, 0.7, 0.3, 1)',
+      });
+    }
+    if (!plate) announce('Pattern put away.');
+  });
+
+  frame.tucked.addEventListener('click', () => game.usePattern(null));
+
   const takeOut = (band: PlateBand): void => {
     const rect = frame.slotRect(band);
     const plate = game.remove(band);
@@ -96,17 +144,37 @@ export function connectPlates(game: Game, tray: TrayView): void {
     },
   });
 
+  /** Double-tap and drag for the pattern stack: its plates tuck under the frame's edge, paper down or not. */
+  const patternGestures: Omit<GestureHandlers, 'tap'> = {
+    doubleTap: () => void usePattern(null),
+    canDrag: (dx, dy) => !tray.drawerScrolls() || Math.abs(dy) > Math.abs(dx),
+    dragStart: (event, origin) => {
+      const face = wells.pattern.face();
+      if (!face || !game.topOf('pattern')) return;
+      dragPlate({
+        event,
+        origin,
+        face,
+        capture: wells.pattern.button,
+        over: (x, y) => frame.accepts(x, y),
+        hover: (on) => frame.highlight(on ? 'all' : null),
+        drop: (ghost) => void usePattern(ghost),
+        cancel: (ghost) => void fly(ghost, face.getBoundingClientRect(), { duration: 260 }).then(() => ghost.remove()),
+      });
+    },
+  };
+
   for (const kind of PLATE_KINDS) {
     const well = wells[kind];
     const figure = kind !== 'pattern';
     showTop(kind, 0);
 
-    attachGestures(well.button, { tap: () => flip(kind, 1), ...(figure ? placeGestures(kind) : {}) });
+    attachGestures(well.button, { tap: () => flip(kind, 1), ...(figure ? placeGestures(kind) : patternGestures) });
 
     well.button.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') flip(kind, 1);
       else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') flip(kind, -1);
-      else if (e.key === 'Enter' && figure) void place(kind, null);
+      else if (e.key === 'Enter') void (figure ? place(kind, null) : usePattern(null));
       else return;
       e.preventDefault();
     });

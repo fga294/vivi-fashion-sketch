@@ -23,6 +23,11 @@ export function connectSound(game: Game, tray: TrayView, sound: SoundEngine): vo
   });
   bus.on('paper:new', () => sound.swish('paper'));
   bus.on('bead:fill', ({ count }) => sound.pop(count));
+  // A pattern plate seats under the frame's edge; going home it swishes (plate:slide).
+  bus.on('pattern:change', ({ plate }) => {
+    if (plate) sound.clack('plate');
+  });
+  bus.on('crayon:change', () => sound.tick());
 
   const button = tray.bump('sound');
   const dome = button.querySelector('.bump__dome')!;

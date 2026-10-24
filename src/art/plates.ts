@@ -22,6 +22,12 @@ export interface PlateArt extends PlateEntry {
   readonly viewBox: string;
   /** Path data for every shape, in absolute sheet (or tile) coordinates. */
   readonly paths: readonly string[];
+  /**
+   * The shapes that bound a garment or body part: every path except those marked
+   * data-detail (pleats, stripes, pockets, buttons), which sit inside one area.
+   * "Stay inside" keeps a pattern within these lines.
+   */
+  readonly outlines: readonly string[];
 }
 
 export function isFigure(plate: PlateEntry): plate is PlateEntry & { readonly band: PlateBand } {
@@ -63,17 +69,29 @@ export function parseManifest(json: unknown): PlateEntry[] {
 
 /** Path data for every shape under an SVG root, in document order. */
 export function shapesOf(root: XmlElement): string[] {
-  const paths: string[] = [];
+  return shapes(root).map((s) => s.d);
+}
+
+/** Every shape's path data, and whether it is marked as a detail inside an area. */
+function shapes(root: XmlElement): { d: string; detail: boolean }[] {
+  const out: { d: string; detail: boolean }[] = [];
   walk(root, (el) => {
     const d = shapeToPathData(el.name, el.attrs);
-    if (d !== null) paths.push(d);
+    if (d !== null) out.push({ d, detail: 'data-detail' in el.attrs });
   });
-  return paths;
+  return out;
 }
 
 export function artFromXml(entry: PlateEntry, root: XmlElement): PlateArt {
   const title = root.children.find((c) => c.name === 'title')?.text.trim() ?? '';
-  return { ...entry, title, viewBox: root.attrs['viewBox'] ?? '', paths: shapesOf(root) };
+  const all = shapes(root);
+  return {
+    ...entry,
+    title,
+    viewBox: root.attrs['viewBox'] ?? '',
+    paths: all.map((s) => s.d),
+    outlines: all.filter((s) => !s.detail).map((s) => s.d),
+  };
 }
 
 /** Read a plate SVG file into drawable art. */
