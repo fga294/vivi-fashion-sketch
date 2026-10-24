@@ -14,12 +14,18 @@ export const COMPLETE_AT = 0.9;
 
 /** Points every `spacing` units along a path (by arc length), with each subpath's ends. */
 export function samplePath(d: string, spacing = SAMPLE_SPACING): Point[] {
-  const out: Point[] = [];
+  return sampleSubpaths(d, spacing).flat();
+}
+
+/** samplePath, one list per subpath. */
+export function sampleSubpaths(d: string, spacing = SAMPLE_SPACING): Point[][] {
+  const all: Point[][] = [];
   for (const sub of parsePath(d)) {
     const pts = flatten(sub, 0.5);
     const first = pts[0];
     if (!first) continue;
-    out.push(first);
+    const out: Point[] = [first];
+    all.push(out);
     let since = 0;
     for (let i = 1; i < pts.length; i++) {
       let ax = pts[i - 1]!.x;
@@ -39,7 +45,7 @@ export function samplePath(d: string, spacing = SAMPLE_SPACING): Point[] {
     const last = pts[pts.length - 1]!;
     if (since > spacing * 0.3) out.push(last);
   }
-  return out;
+  return all;
 }
 
 export interface CoverageBand {
@@ -53,6 +59,8 @@ export class Coverage {
   private readonly ys: Float32Array;
   private readonly strength: Float32Array;
   private readonly bandOf: Uint8Array;
+  /** 1 where a sample starts a new line (a new subpath). */
+  private readonly starts: Uint8Array;
   private readonly totals: Int32Array;
   private readonly revealed: Int32Array;
   /** Bands whose revealed count changed since the last takeChanged(). */
@@ -70,11 +78,15 @@ export class Coverage {
     this.bands = bands.map((b) => b.band);
     const pts: Point[] = [];
     const owner: number[] = [];
+    const starts: number[] = [];
     bands.forEach((b, i) => {
       for (const d of b.paths) {
-        for (const p of samplePath(d)) {
-          pts.push(p);
-          owner.push(i);
+        for (const line of sampleSubpaths(d)) {
+          line.forEach((p, k) => {
+            pts.push(p);
+            owner.push(i);
+            starts.push(k === 0 ? 1 : 0);
+          });
         }
       }
     });
@@ -83,6 +95,7 @@ export class Coverage {
     this.ys = Float32Array.from(pts, (p) => p.y);
     this.strength = new Float32Array(n);
     this.bandOf = Uint8Array.from(owner);
+    this.starts = Uint8Array.from(starts);
     this.totals = new Int32Array(bands.length);
     for (const o of owner) this.totals[o]!++;
     this.revealed = new Int32Array(bands.length);
@@ -156,6 +169,25 @@ export class Coverage {
     }
     this.revealed[band] = this.totals[band]!;
     this.changed[band] = 1;
+  }
+
+  /**
+   * The revealed stretches of line work, as polylines through consecutive revealed
+   * samples (6 units apart). A lone revealed sample is a one-point line.
+   */
+  revealedLines(): Point[][] {
+    const out: Point[][] = [];
+    let run: Point[] | null = null;
+    for (let i = 0; i < this.strength.length; i++) {
+      if (this.starts[i]) run = null;
+      if (this.strength[i]! < REVEALED) {
+        run = null;
+        continue;
+      }
+      if (!run) out.push((run = []));
+      run.push({ x: this.xs[i]!, y: this.ys[i]! });
+    }
+    return out;
   }
 
   /** Call `fn` with the position of each sample revealed since last time, then forget them. */

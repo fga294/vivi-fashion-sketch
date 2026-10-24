@@ -182,3 +182,39 @@ Choices made where PLAN.md is silent or needed interpreting, newest phase last.
   - It also covers a stroke started off the outfit, tucking, swapping and putting away, and the crayon colours.
   - The `perf` project gains a frame-rate test for a clipped pattern.
   - Playwright now runs 4 workers. With the default 6 and the larger suite, WebKit page loads timed out while the machine was busy.
+
+## Phase 7 — Colouring
+
+- **The pencil box.** Tapping it flips the lid up and fans the 16 pencils out above it, rising in a quick stagger.
+  - The fan is two rows of eight on a tablet and wraps to more rows on a phone. Every pencil is a 48 × 96 px target.
+  - Choosing a pencil puts the tool in hand down, puts that pencil in hand and closes the fan. The pencil is the cursor, with the same spring and lean as the crayon and no crumbs. A coloured dot on the box shows which pencil is in hand.
+  - Tapping the pencil in hand puts it back. Tapping the box again, pressing Escape or tapping anywhere else closes the fan.
+- **Magic fill is a switch in the fan** (a wand, "Magic"). With it on, a tap with the pencil fills the area under it and a drag does nothing. With it off, the pencil colours freehand. The cursor pencil wears a little star while it's on. A tap travels under 14 units.
+- **Pencil strokes** lay 8-unit round dabs every 1.5 units, faint enough that one pass shows the paper's tooth and a second builds the colour (about 55%, then 80%). The tooth is its own grain, so a heavier pencil fills more of the paper's peaks. Apple Pencil pressure scales each dab, as with the crayon. Colour multiplies over the paper, so overlapping colours mix like real pencils.
+- **Magic fill's walls are the revealed lines,** but taken from the rubbing engine's line samples, not the lines layer.
+  - The waxy grain leaves tiny holes in every rubbed line, so a fill read from the pixels leaked through: 92% of the sheet came out as one area.
+  - Instead, each stretch of line between two revealed samples (6 units apart) becomes a wall, 3 units wide plus a unit either side. That is the plan's "dilated by 1 px", and it closes gaps under 2 units. A finished band counts in full.
+  - Lines revealed under earlier placements of the same sheet count too. Unrubbed lines don't, as the plan says.
+  - It is the same flood fill as Stay inside, but every line is a wall here, details included: colouring a pleated skirt fills one panel at a time, as in a colouring book.
+- **The hatch** is diagonal pencil strokes about 3 units apart, each a little uneven in position and pressure. It repeats seamlessly every 48 units, is anchored to the sheet so neighbouring fills line up, and gets the pencils' paper tooth.
+- **Fills never cover lines, in three ways:**
+  - the colour layer sits under the lines layer;
+  - the fill's area stops at the walls and reaches just one unit under each line's edge;
+  - a test checks that the colour layer stays empty at the centre of every revealed line.
+- **Big fills ask first.** A fill over 45% of the sheet (in practice the open paper around the figure) shows faintly, with a tick and a cross beside the tap. Any other tap on the paper, an undo, or lifting the paper cancels it. The preview is drawn at a steady 50%: animating its opacity made Chromium's software compositing drop the colour layer beneath it.
+- **The eraser** is a chunky 24-unit round, so one pass clears. It removes colour and pattern, never the lines and never the wax haze, as the plan says. Its cursor is a pink eraser in a paper sleeve, and it has its own low, rubbery scratch.
+- **Undo and redo.**
+  - Undoable: pencil strokes, Magic fills, eraser strokes and pattern strokes.
+  - Not undoable: rubbing the figure's lines. Wax lines stay, as on the toy, and a band that has giggled and earned its heart can't un-giggle.
+  - The history keeps 30 steps. A new action clears redo, and a new sheet clears both.
+- **How undo stores steps.** Each layer is cut into 128 px tiles. The first time an action is about to draw on a tile, the tile is copied (a GPU copy into a small canvas, never a pixel readback). Undo swaps the saved tiles with what is there now, so the same tiles serve redo. Memory grows only with the area an action touched. A full-sheet fill is about 250 tiles; past 1,500 saved tiles the oldest steps are forgotten.
+- **Every stroke finishes drawing when the finger lifts** (it used to finish on the next frame), so the history sees all of it before it commits.
+- **Redo floats just above Undo** while there is something to redo. A sixth button wouldn't fit the phone's bump row. With nothing to undo, Undo dims (`aria-disabled`) and wiggles when tapped. Ctrl/⌘+Z undoes; Shift+Ctrl/⌘+Z or Ctrl+Y redoes.
+- **Two-finger tap.** Two fingers landing within 250 ms and lifting within 450 ms, without sliding, undo. The first finger's mark is taken back first, since it was the start of the tap, not a stroke.
+- **Sounds.** The pencil scratch is the higher, quieter preset from phase 5, and the eraser has a low, soft one. A Magic fill plays a soft shimmer and a quick glockenspiel run. Choosing a pencil, switching Magic fill, and undo or redo each tick.
+- **`hidden` always wins** (a global `[hidden] { display: none !important }`). The fan, the fill check and Redo set their own `display`, which had overridden `hidden` and left an invisible fan blocking the paper.
+- **The sheet isolates its blending** (`isolation: isolate`), so the colour layer multiplies over the paper whatever animates above it.
+- **Testing.**
+  - `tests/e2e/colouring.spec.ts` covers the Done-when checks: fills never cover lines, the eraser never removes lines, and 30 undo steps work and redo back. It also covers undoing a fill, an eraser stroke and a pattern stroke, the big-fill check, the pencil box, and the two-finger tap (on touch devices).
+  - The `perf` project gains a frame-rate test for pencil colouring.
+  - The tests that rub the whole figure first are marked slow, and they wait for the finishing sweeps to stop drawing before fingerprinting the lines.

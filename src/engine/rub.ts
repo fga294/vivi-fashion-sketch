@@ -10,9 +10,11 @@
 //   pattern += stamps × grain ∩ clip ∩ tile
 
 import { BANDS, type PlateBand } from '../art/bands.ts';
+import type { Point } from '../art/geometry.ts';
 import type { GameEvents, Slots, Bus } from '../state.ts';
 import { COMPLETE_AT, Coverage } from './coverage.ts';
 import { grainCanvas, grainField, waxAlpha, GRAIN_SIZE } from './grain.ts';
+import type { History } from './history.ts';
 import type { Loop } from './loop.ts';
 import type { RegionClip } from './pattern.ts';
 import { mulberry32 } from './random.ts';
@@ -123,6 +125,8 @@ export class RubEngine {
   private plateArt: ImageBitmap | HTMLCanvasElement | null = null;
   private coverage: Coverage | null = null;
   private bands: readonly PlateBand[] = [];
+  /** Lines revealed under earlier placements of this sheet (lift, swap, lay back). */
+  private earlier: Point[][] = [];
   private done = new Uint8Array(0);
   private readonly sweeps: Sweep[] = [];
   private readonly spacer = new StampSpacer(STAMP_SPACING);
@@ -133,6 +137,10 @@ export class RubEngine {
   private alpha = stampAlpha(0.85);
   /** Called with the sheet position of each newly revealed line sample (line twinkles). */
   onReveal: ((x: number, y: number) => void) | null = null;
+  /** Where pattern batches report the pixels they are about to change (for undo; lines aren't undone). */
+  history: History<unknown> | null = null;
+  /** Goes up whenever lines are drawn, so Magic fill knows when to read them again. */
+  linesVersion = 0;
   // The scratch batch: origin (px) and used bounds (px) in sheet backing pixels.
   private ox = 0;
   private oy = 0;
@@ -192,8 +200,13 @@ export class RubEngine {
     return i < 0 || !this.coverage ? 0 : this.coverage.progress(i);
   }
 
-  /** Rasterise the placed plates and start fresh coverage: each paper placement re-arms every band. */
-  arm(slots: Slots): void {
+  /**
+   * Rasterise the placed plates and start fresh coverage: each paper placement
+   * re-arms every band. Laying a lifted sheet back keeps the lines revealed so far.
+   */
+  arm(slots: Slots, fresh = true): void {
+    this.earlier = fresh ? [] : [...this.earlier, ...(this.coverage?.revealedLines() ?? [])];
+    this.linesVersion++;
     const placed = (['top', 'head', 'torso', 'legs'] as const).filter((b) => slots[b]);
     this.bands = placed;
     this.coverage = new Coverage(placed.map((band) => ({ band, paths: slots[band]!.paths })));
@@ -216,6 +229,11 @@ export class RubEngine {
     for (const band of placed) this.bus.emit('band:progress', { band, progress: 0 });
   }
 
+  /** Every line revealed on this sheet, as polylines in sheet units (Magic fill's walls). */
+  revealedLines(): Point[][] {
+    return [...this.earlier, ...(this.coverage?.revealedLines() ?? [])];
+  }
+
   /** Finish any completion sweeps at once, e.g. before the paper is lifted. */
   finishSweeps(): void {
     while (this.sweeps.length > 0) this.runSweeps(Infinity);
@@ -236,9 +254,12 @@ export class RubEngine {
     if (this.queued > 0) this.loop.wake();
   }
 
+  /** Finish the stroke and draw what is left now, so the undo history sees all of it. */
   end(): void {
     this.spacer.end(this.enqueue);
-    this.loop.wake();
+    this.drain();
+    this.coverage?.takeChanged(this.report);
+    this.loop.wake(); // a band this finished starts its sweep next frame
   }
 
   private readonly enqueue = (x: number, y: number, angle: number): void => {
@@ -336,6 +357,7 @@ export class RubEngine {
           b.drawImage(this.plateArt, x0, y0, w, h, 0, 0, w, h);
           b.globalCompositeOperation = 'source-over';
           this.sheet.layer('lines').drawImage(b.canvas, 0, 0, w, h, x0, y0, w, h);
+          this.linesVersion++;
         }
       }
     }
@@ -367,6 +389,8 @@ export class RubEngine {
     }
     b.drawImage(this.a.canvas, sx, sy, w, h, 0, 0, w, h);
     b.globalCompositeOperation = 'source-over';
+    this.history?.touch('tone', x0, y0, x0 + w, y0 + h);
+    this.history?.touch('pattern', x0, y0, x0 + w, y0 + h);
     this.sheet.layer('tone').drawImage(b.canvas, 0, 0, w, h, x0, y0, w, h);
     // The tile is anchored to the sheet, so every stroke lands in registration.
     b.globalCompositeOperation = 'destination-in';
@@ -425,10 +449,12 @@ export class RubEngine {
         lines.globalCompositeOperation = 'destination-over';
         lines.drawImage(b.canvas, 0, 0, w, h, x0, y, w, h);
         lines.globalCompositeOperation = 'source-over';
+        this.linesVersion++;
       }
       sw.x = x0 + w < x1 ? (x0 + w) / s : to;
       if (t >= 1 && sw.x >= 600) {
         this.coverage?.revealAll(sw.band);
+        this.linesVersion++;
         this.sweeps.splice(i, 1);
       }
     }

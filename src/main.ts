@@ -7,6 +7,7 @@ import * as synth from './audio/synth.ts';
 import { Game } from './state.ts';
 import { readPrefs } from './storage/prefs.ts';
 import { announcer } from './ui/announce.ts';
+import { connectColouring } from './ui/colouring.ts';
 import { connectCompletion } from './ui/completion.ts';
 import { connectPlates } from './ui/controller.ts';
 import { connectPaper } from './ui/paper.ts';
@@ -33,6 +34,7 @@ const game = new Game(await loadPlates().catch((err: unknown) => {
 connectPlates(game, tray);
 const paper = connectPaper(game, tray, sound);
 connectPatterns(game, paper, prefs.stayInside);
+connectColouring(game, tray, paper);
 connectSound(game, tray, sound);
 const celebrate = connectCompletion(game, tray, paper, sound);
 
@@ -51,6 +53,8 @@ if (new URLSearchParams(location.search).has('fxstats')) {
       synth,
       game,
       stayInside: paper.stayInside,
+      history: paper.history,
+      revealedLines: () => paper.rub.revealedLines(),
     },
   });
 }

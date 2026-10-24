@@ -50,6 +50,11 @@ export class Sheet {
     return ctx;
   }
 
+  /** Whether a layer has been allocated (drawn on or prepared). */
+  has(name: LayerName): boolean {
+    return this.contexts.has(name);
+  }
+
   /** Put an extra element (the celebration glow) in the stack, just under a layer, without allocating it. */
   insertUnder(el: HTMLElement, name: LayerName): void {
     this.element.insertBefore(el, this.canvases[name]);

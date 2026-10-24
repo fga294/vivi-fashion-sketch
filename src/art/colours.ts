@@ -5,7 +5,7 @@ export interface Pencil {
 }
 
 /** The 16 colouring pencils, in box order (PLAN.md, Colouring tools). */
-export const PENCILS: readonly Pencil[] = [
+export const PENCILS = [
   { id: 'cherry', name: 'Cherry red', hex: '#D2283C' },
   { id: 'tangerine', name: 'Tangerine', hex: '#F08A2C' },
   { id: 'sunflower', name: 'Sunflower', hex: '#F4C542' },
@@ -22,7 +22,13 @@ export const PENCILS: readonly Pencil[] = [
   { id: 'honey', name: 'Honey', hex: '#E0B086' },
   { id: 'caramel', name: 'Caramel', hex: '#B4784C' },
   { id: 'espresso', name: 'Espresso', hex: '#583724' },
-];
+] as const satisfies readonly Pencil[];
+
+export type PencilId = (typeof PENCILS)[number]['id'];
+
+export function pencilById(id: PencilId): Pencil {
+  return PENCILS.find((p) => p.id === id)!;
+}
 
 export type CrayonId = 'wax' | 'rose' | 'sky' | 'mint';
 

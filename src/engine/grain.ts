@@ -76,3 +76,20 @@ export function grainCanvas(alpha: Uint8ClampedArray, size = GRAIN_SIZE): HTMLCa
   ctx.putImageData(img, 0, 0);
   return canvas;
 }
+
+/**
+ * Map grain to paper tooth for coloured pencil: the pencil catches the peaks, so
+ * the lowest ~18% of the field takes no colour and the next ~40% only some.
+ * Rubbing again builds colour on the peaks, as with a real pencil.
+ */
+export function toothAlpha(field: Float32Array): Uint8ClampedArray {
+  const sorted = Float32Array.from(field).sort();
+  const lo = sorted[Math.floor(sorted.length * 0.18)]!;
+  const hi = sorted[Math.floor(sorted.length * 0.58)]!;
+  const out = new Uint8ClampedArray(field.length);
+  for (let i = 0; i < field.length; i++) {
+    const t = Math.min(1, Math.max(0, (field[i]! - lo) / (hi - lo)));
+    out[i] = Math.round((0.25 + 0.75 * smooth(t)) * (t > 0 ? 255 : 0));
+  }
+  return out;
+}

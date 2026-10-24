@@ -226,9 +226,16 @@
     opacity 460ms ease-out;
 }
 
-/* The crayon sprite is the cursor over the paper. */
-.frame[data-paper='down'] .sheet[data-tool='crayon'] {
+/* The tool sprite (crayon, pencil or eraser) is the cursor over the paper. */
+.frame[data-paper='down'] .sheet[data-tool]:not([data-tool='none']) {
   cursor: none;
+}
+
+/* A big Magic fill waits, shown faintly, while the player decides. Steady opacity and plain
+   blending: animating it made software compositing drop the colour layer beneath. */
+.sheet .fill-preview {
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 .sheet .layer {

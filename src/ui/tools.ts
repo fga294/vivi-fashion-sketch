@@ -47,16 +47,20 @@ function pencilBoxArt(): SVGSVGElement {
     'svg',
     { class: 'pencil-box__art', viewBox: '0 0 320 140', 'aria-hidden': 'true', focusable: 'false' },
     s('defs', {}, s('clipPath', { id: clipId }, s('ellipse', { cx: 160, cy: 82, rx: 122, ry: 38 }))),
-    // box body and lid
+    // box body; the lid (below) flips up when the box opens
     s('rect', { x: 3, y: 6, width: 314, height: 130, rx: 12, fill: 'var(--plate-blush)', stroke: 'var(--plate-blush-line)', 'stroke-width': 2 }),
-    s('path', { d: 'M5 30 H315', stroke: 'var(--plate-blush-line)', 'stroke-width': 1.5 }),
     s('path', { d: 'M6 31.5 H314', stroke: 'var(--plate-blush-hi)', 'stroke-width': 1 }),
-    s('path', { d: 'M14 9 H306', stroke: 'var(--plate-blush-hi)', 'stroke-width': 1.5, 'stroke-linecap': 'round' }),
     // die-cut window: dark inside, pencils showing through, cut edge on top
     s('ellipse', { cx: 160, cy: 82, rx: 122, ry: 38, fill: '#7A6366' }),
     s('g', { 'clip-path': `url(#${clipId})` }, ...pencils, s('ellipse', { cx: 160, cy: 70, rx: 126, ry: 40, fill: 'none', stroke: 'rgba(60,35,40,0.28)', 'stroke-width': 8 })),
     s('ellipse', { cx: 160, cy: 82, rx: 122, ry: 38, fill: 'none', stroke: 'var(--plate-blush-line)', 'stroke-width': 2.5 }),
     s('ellipse', { cx: 160, cy: 83.5, rx: 123, ry: 39, fill: 'none', stroke: 'var(--plate-blush-hi)', 'stroke-width': 1, opacity: 0.9 }),
+    s(
+      'g',
+      { class: 'pencil-box__lid' },
+      s('path', { d: 'M3 30 V18 C3 11.4 8.4 6 15 6 H305 C311.6 6 317 11.4 317 18 V30 Z', fill: 'var(--plate-blush)', stroke: 'var(--plate-blush-line)', 'stroke-width': 2 }),
+      s('path', { d: 'M14 9 H306', stroke: 'var(--plate-blush-hi)', 'stroke-width': 1.5, 'stroke-linecap': 'round' }),
+    ),
   );
 }
 
@@ -81,7 +85,11 @@ export function buildPegs(): Pegs {
     crayons[c.id] = button;
   }
   const crayonTray = h('div', { class: 'crayon-tray', role: 'group', 'aria-label': 'Crayons' }, ...CRAYONS.map((c) => crayons[c.id]));
-  const pencils = h('button', { type: 'button', class: 'pencil-box', 'aria-label': 'Pencils' }, pencilBoxArt());
+  const pencils = h(
+    'button',
+    { type: 'button', class: 'pencil-box', 'aria-label': 'Pencils', 'aria-expanded': 'false', 'aria-controls': 'pencil-fan' },
+    pencilBoxArt(),
+  );
   const element = h('div', { class: 'pegs' }, crayonTray, h('div', { class: 'pencil-holder' }, pencils));
   return { element, crayonTray, crayons, pencils };
 }

@@ -4,9 +4,9 @@
 // from public/sounds/ when they exist.
 
 import * as synth from './synth.ts';
-import type { ClackKind, Patch, SwishKind } from './synth.ts';
+import { SCRATCH_TONES, type ClackKind, type Patch, type ScratchKind, type SwishKind } from './synth.ts';
 
-export type SoundName = 'tick' | 'swish' | 'clack' | 'pop' | 'giggle' | 'tada' | 'scratch';
+export type SoundName = 'tick' | 'swish' | 'clack' | 'pop' | 'giggle' | 'tada' | 'scratch' | 'magic';
 
 export interface SoundLogEntry {
   readonly name: SoundName;
@@ -62,6 +62,7 @@ export class SoundEngine {
   private ctx: AudioContext | null = null;
   private patch: Patch | null = null;
   private master: GainNode | null = null;
+  private readonly scratches = new Map<ScratchKind, synth.Scratch>();
   private scratch: synth.Scratch | null = null;
   private muted: boolean;
   private listening = false;
@@ -262,12 +263,20 @@ export class SoundEngine {
     );
   }
 
-  // ---------- Crayon scratch, while rubbing ----------
+  /** A Magic fill lands. */
+  magic(): void {
+    this.play('magic', '', (p, t) => synth.magic(p, t));
+  }
 
-  scratchStart(): void {
-    this.play('scratch', 'crayon', (p, t) => {
-      this.scratch ??= new synth.Scratch(p, synth.CRAYON_SCRATCH);
-      this.scratch.start(t);
+  // ---------- Scratch, while rubbing, colouring or erasing ----------
+
+  scratchStart(kind: ScratchKind = 'crayon'): void {
+    this.play('scratch', kind, (p, t) => {
+      let scratch = this.scratches.get(kind);
+      if (!scratch) this.scratches.set(kind, (scratch = new synth.Scratch(p, SCRATCH_TONES[kind])));
+      if (this.scratch !== scratch && this.scratch?.playing) this.scratch.stop(t);
+      this.scratch = scratch;
+      scratch.start(t);
     });
   }
 

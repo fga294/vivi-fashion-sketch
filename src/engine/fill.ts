@@ -58,7 +58,8 @@ export interface Region {
   readonly area: number;
   /**
    * Reaches the edge of the grid: open space around the figure, not a closed area.
-   * An open region's fill stops as soon as it knows, so its box and area are partial.
+   * With `stopAtOpen` (the default), an open region's fill stops as soon as it
+   * knows, so its box and area are partial.
    */
   readonly open: boolean;
 }
@@ -71,10 +72,13 @@ export class Regions {
   private readonly labels: Int32Array;
   private readonly found: Region[] = [];
   private readonly stack: number[] = [];
+  private readonly stopAtOpen: boolean;
 
-  constructor(width: number, height: number) {
+  /** With `stopAtOpen` off, open regions are filled in full (Magic fill needs their real size). */
+  constructor(width: number, height: number, { stopAtOpen = true } = {}) {
     this.width = width;
     this.height = height;
+    this.stopAtOpen = stopAtOpen;
     this.walls = new Uint8Array(width * height);
     this.labels = new Int32Array(width * height);
   }
@@ -158,10 +162,11 @@ export class Regions {
   }
 
   /**
-   * Scanline flood fill from an unlabelled open cell. It stops as soon as it
-   * reaches the grid's edge or a cell of a region already known to be open: that
-   * area is open space, and no clip needs its full extent. Cells it labelled are
-   * open; ones it didn't reach find that out next time, from their labelled neighbours.
+   * Scanline flood fill from an unlabelled open cell. With `stopAtOpen`, it stops
+   * as soon as it reaches the grid's edge or a cell of a region already known to be
+   * open: that area is open space, and no clip needs its full extent. Cells it
+   * labelled are open; ones it didn't reach find that out next time, from their
+   * labelled neighbours.
    */
   private fill(start: number): Region {
     const { width: W, height: H, walls, labels, stack, found } = this;
@@ -190,7 +195,7 @@ export class Regions {
 
     stack.length = 0;
     stack.push(start);
-    while (stack.length > 0 && !open) {
+    while (stack.length > 0 && !(open && this.stopAtOpen)) {
       const i = stack.pop()!;
       if (!free(i)) continue;
       const y = (i / W) | 0;

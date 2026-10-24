@@ -28,6 +28,10 @@ export function connectSound(game: Game, tray: TrayView, sound: SoundEngine): vo
     if (plate) sound.clack('plate');
   });
   bus.on('crayon:change', () => sound.tick());
+  bus.on('pencil:change', () => sound.tick());
+  bus.on('magic:change', () => sound.tick());
+  bus.on('fill:done', () => sound.magic());
+  bus.on('history:step', () => sound.tick());
 
   const button = tray.bump('sound');
   const dome = button.querySelector('.bump__dome')!;

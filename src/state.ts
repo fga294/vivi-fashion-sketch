@@ -1,5 +1,5 @@
 import type { PlateBand, SlotBand } from './art/bands.ts';
-import type { CrayonId } from './art/colours.ts';
+import type { CrayonId, PencilId } from './art/colours.ts';
 import { isFigure, PLATE_KINDS, type PlateArt, type PlateKind } from './art/plates.ts';
 
 export type FigurePlate = PlateArt & { readonly band: PlateBand };
@@ -70,6 +70,16 @@ export interface GameEvents {
   'tool:change': { readonly tool: Tool };
   /** A different rubbing crayon is chosen. */
   'crayon:change': { readonly crayon: CrayonId };
+  /** A different colouring pencil is chosen. */
+  'pencil:change': { readonly pencil: PencilId };
+  /** Magic fill switched on or off: with it on, a pencil tap fills a closed area. */
+  'magic:change': { readonly on: boolean };
+  /** A Magic fill landed, covering this share of the sheet (0–1). */
+  'fill:done': { readonly share: number };
+  /** What Undo and Redo can do now. */
+  'history:change': { readonly canUndo: boolean; readonly canRedo: boolean };
+  /** An action was undone or redone. */
+  'history:step': { readonly direction: 'undo' | 'redo' };
   /** A pattern plate is tucked under the frame (rubbing reveals it), or put away (null). */
   'pattern:change': { readonly plate: PlateArt | null; readonly previous: PlateArt | null };
   /** A plate's share of revealed line samples, 0–1. */
@@ -82,8 +92,8 @@ export interface GameEvents {
   'bead:fill': { readonly band: SlotBand; readonly count: number };
 }
 
-/** What the pointer does on the paper. Pencils and the eraser arrive in phase 7. */
-export type Tool = 'none' | 'crayon';
+/** What the pointer does on the paper. A pencil colours freehand, or fills a closed area with Magic fill on. */
+export type Tool = 'none' | 'crayon' | 'pencil' | 'eraser';
 
 type Handler<T> = (payload: T) => void;
 
@@ -121,6 +131,9 @@ export class Game {
   phase: Phase = 'noPaper';
   tool: Tool = 'none';
   crayon: CrayonId = 'wax';
+  pencil: PencilId = 'cherry';
+  /** Magic fill: a pencil tap fills the closed area under it. */
+  magic = false;
   /** The active pattern plate: while set, the crayon reveals its texture instead of the figure's lines. */
   pattern: PlateArt | null = null;
 
@@ -211,6 +224,18 @@ export class Game {
     if (crayon === this.crayon) return;
     this.crayon = crayon;
     this.bus.emit('crayon:change', { crayon });
+  }
+
+  setPencil(pencil: PencilId): void {
+    if (pencil === this.pencil) return;
+    this.pencil = pencil;
+    this.bus.emit('pencil:change', { pencil });
+  }
+
+  setMagic(on: boolean): void {
+    if (on === this.magic) return;
+    this.magic = on;
+    this.bus.emit('magic:change', { on });
   }
 
   setTool(tool: Tool): void {

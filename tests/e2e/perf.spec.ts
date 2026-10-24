@@ -147,3 +147,17 @@ test('frame rate while rubbing a pattern kept inside the skirt', async ({ page }
   expect(stats.median).toBeLessThan(17.5);
   expect(stats.slowestSecondFps).toBeGreaterThanOrEqual(55);
 });
+
+test('frame rate while colouring with a pencil', async ({ page }, info) => {
+  await setUp(page);
+  await page.locator('.pencil-box').click();
+  await page.locator('.pencil[data-pencil="cobalt"]').click();
+  await expect(page.locator('.pencil-fan')).toBeHidden();
+  // Every batch of the stroke saves the tiles it is about to colour, for undo.
+  const stats = await measureScrub(page, [150, 60]);
+  report(info, stats);
+  const steps = await page.evaluate(() => (window as unknown as { __viviFx: { history: { steps: number } } }).__viviFx.history.steps);
+  expect(steps).toBe(1);
+  expect(stats.median).toBeLessThan(17.5);
+  expect(stats.slowestSecondFps).toBeGreaterThanOrEqual(55);
+});

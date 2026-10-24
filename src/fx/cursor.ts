@@ -1,6 +1,7 @@
-// The crayon cursor: an SVG crayon that follows the pointer on a spring, leans
-// into the direction of travel, squashes when the scrub reverses, and wears its
-// tip flat over the session. It lives in the fixed flight layer, above everything.
+// The tool cursor: an SVG crayon, pencil or eraser that follows the pointer on a
+// spring, leans into the direction of travel and squashes when the scrub
+// reverses. The crayon's tip wears flat over the session. It lives in a fixed
+// layer above everything.
 
 import type { FrameTask } from '../engine/loop.ts';
 import { s } from '../ui/dom.ts';
@@ -28,9 +29,14 @@ export function tipPath(wear: number): string {
   return `M24 9 L${x} ${TIP_Y - h} Q${x - 2} ${TIP_Y} ${x} ${TIP_Y + h} L24 31 Z`;
 }
 
-export class CrayonCursor {
+/** Which sprite the cursor shows. All share the 150 × 40 view with the working end at (4, 20). */
+export type CursorKind = 'crayon' | 'pencil' | 'eraser';
+
+export class ToolCursor {
   readonly element: HTMLElement;
   private readonly tip: SVGPathElement;
+  private readonly sprites: Record<CursorKind, SVGGElement>;
+  private readonly sparkle: SVGPathElement;
   private readonly spring: Spring = { x: 0, y: 0, vx: 0, vy: 0 };
   private tx = 0;
   private ty = 0;
@@ -46,20 +52,63 @@ export class CrayonCursor {
 
   constructor() {
     this.tip = s('path', { d: tipPath(0), fill: 'var(--crayon-wax)' });
-    const svg = s(
-      'svg',
-      { viewBox: `0 0 ${VIEW_W} ${VIEW_H}`, 'aria-hidden': 'true', focusable: 'false' },
+    const crayon = s(
+      'g',
+      {},
       this.tip,
       s('path', { d: 'M24 9 H140 C145 9 146 12 146 15 V25 C146 28 145 31 140 31 H24 Z', fill: 'var(--crayon-wax)' }),
       s('path', { d: 'M27 12.5 H138', stroke: 'rgba(255,255,255,0.16)', 'stroke-width': 2, 'stroke-linecap': 'round' }),
       s('rect', { x: 50, y: 8, width: 82, height: 24, rx: 2, fill: 'var(--frame-taupe)' }),
       s('path', { d: 'M56 8 V32 M126 8 V32 M64 20 H118', stroke: 'var(--frame-taupe-dark)', 'stroke-width': 1.4, 'stroke-linecap': 'round', opacity: 0.8 }),
     );
+    // A long hexagonal pencil: painted body, sharpened wood cone, coloured lead.
+    this.sparkle = s('path', {
+      d: 'M12 0 Q12 6 18 6 Q12 6 12 12 Q12 6 6 6 Q12 6 12 0 Z',
+      fill: '#F6DE8D',
+      stroke: '#B08428',
+      'stroke-width': 1,
+      transform: 'translate(-2 -1)',
+      visibility: 'hidden',
+    });
+    const pencil = s(
+      'g',
+      {},
+      s('path', { d: 'M34 13 H140 C143 13 144 15 144 17 V23 C144 25 143 27 140 27 H34 Z', fill: 'var(--pencil)' }),
+      s('path', { d: 'M36 17.5 H140', stroke: 'rgba(255,255,255,0.28)', 'stroke-width': 1.6 }),
+      s('path', { d: 'M36 23 H140', stroke: 'rgba(0,0,0,0.12)', 'stroke-width': 1.6 }),
+      s('path', { d: 'M34 13 L12 18 Q10 20 12 22 L34 27 Z', fill: '#EFD4A8' }),
+      s('path', { d: 'M14 17.6 L4 20 L14 22.4 Q15.5 20 14 17.6 Z', fill: 'var(--pencil)' }),
+      s('rect', { x: 126, y: 12.5, width: 6, height: 15, fill: '#C9B9A2' }),
+      this.sparkle,
+    );
+    // A chunky pink eraser in a paper sleeve.
+    const eraser = s(
+      'g',
+      {},
+      s('path', { d: 'M10 8 H96 V32 H10 C6 32 4 30 4 26 V14 C4 10 6 8 10 8 Z', fill: '#F2A7B8' }),
+      s('path', { d: 'M8 12 H40', stroke: 'rgba(255,255,255,0.45)', 'stroke-width': 2, 'stroke-linecap': 'round' }),
+      s('rect', { x: 40, y: 6.5, width: 62, height: 27, rx: 2, fill: '#8FB4D8' }),
+      s('path', { d: 'M48 20 H94', stroke: 'rgba(255,255,255,0.7)', 'stroke-width': 1.6, 'stroke-linecap': 'round' }),
+    );
+    this.sprites = { crayon, pencil, eraser };
+    const svg = s('svg', { viewBox: `0 0 ${VIEW_W} ${VIEW_H}`, 'aria-hidden': 'true', focusable: 'false' }, crayon, pencil, eraser);
     this.element = document.createElement('div');
     this.element.className = 'tool-cursor';
     this.element.setAttribute('aria-hidden', 'true');
     this.element.hidden = true;
     this.element.append(svg);
+    this.show('crayon');
+  }
+
+  /** Switch sprite: the crayon, a pencil or the eraser. */
+  show(kind: CursorKind): void {
+    for (const [name, g] of Object.entries(this.sprites)) g.setAttribute('display', name === kind ? 'inline' : 'none');
+  }
+
+  /** The pencil's colour; with Magic fill on, a little star sits at its tip. */
+  setPencil(hex: string, magic: boolean): void {
+    this.element.style.setProperty('--pencil', hex);
+    this.sparkle.setAttribute('visibility', magic ? 'visible' : 'hidden');
   }
 
   /** Let the cursor wake the shared frame loop when the pointer moves. */

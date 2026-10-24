@@ -148,8 +148,17 @@ export interface ScratchTone {
 
 /** Wax crayon on paper: pink noise through 1.8–3 kHz. */
 export const CRAYON_SCRATCH: ScratchTone = { low: 1800, high: 3000, gain: 0.3, wobble: 140 };
-/** Coloured pencil: a higher, quieter band (wired up with the pencils in phase 7). */
+/** Coloured pencil: a higher, quieter band. */
 export const PENCIL_SCRATCH: ScratchTone = { low: 3200, high: 5200, gain: 0.15, wobble: 200 };
+/** Eraser: a low, soft rubbery shuffle. */
+export const ERASER_SCRATCH: ScratchTone = { low: 500, high: 1300, gain: 0.26, wobble: 80 };
+
+export type ScratchKind = 'crayon' | 'pencil' | 'eraser';
+export const SCRATCH_TONES: Readonly<Record<ScratchKind, ScratchTone>> = {
+  crayon: CRAYON_SCRATCH,
+  pencil: PENCIL_SCRATCH,
+  eraser: ERASER_SCRATCH,
+};
 
 /** Stroke speed (sheet units per ms) at which the scratch is at full volume. */
 export const SCRATCH_FULL_SPEED = 1.6;
@@ -403,4 +412,13 @@ export function tada(p: Patch, t: number, level = 0.9): number {
   });
   const end = giggle(p, t + 0.75, giggleScore(2, 1.06), 0.7 * level);
   return yay(p, end + 0.02, 0.5 * level);
+}
+
+/** Magic fill: a soft shimmer of noise under a quick rising glockenspiel run. */
+export function magic(p: Patch, t: number, level = 0.7): void {
+  burst(p, t, 'highpass', 5200, 0.7, 0.05 * level, 0.35);
+  [1567.98, 2093, 2637.02, 3135.96, 4186.01].forEach((f, i) => {
+    const s = t + i * 0.055;
+    tone(p, s, 'sine', f, f, 0, envelope(p.ctx, s, 0.002, 0.06 * level, 0.22), 0.3);
+  });
 }

@@ -42,6 +42,24 @@ describe('Coverage', () => {
     expect(c.progress(0)).toBe(hit);
   });
 
+  it('gives the revealed stretches of line as polylines, split at gaps and between subpaths', () => {
+    // Two vertical lines in one path (two subpaths), and a third path.
+    const c = new Coverage([{ band: 'torso', paths: ['M300 100 L300 400 M320 100 L320 400', line(340)] }]);
+    expect(c.revealedLines()).toEqual([]);
+    // Rub across all three lines at y 200–260 (long side across them), and once more lower down on the first.
+    for (let y = 200; y <= 260; y += 6) c.stamp(320, y, 0, 30, 4, 1);
+    c.stamp(300, 340, 0, 5, 5, 1);
+    const lines = c.revealedLines();
+    expect(lines.map((l) => Math.round(l[0]!.x))).toEqual([300, 300, 320, 340]);
+    for (const l of lines.slice(0, 1).concat(lines.slice(2))) {
+      expect(l.length).toBeGreaterThanOrEqual(10); // ~60 units at 6-unit spacing
+      for (let i = 1; i < l.length; i++) expect(l[i]!.y - l[i - 1]!.y).toBeCloseTo(SAMPLE_SPACING, 3);
+    }
+    expect(lines[1]!.length).toBeLessThanOrEqual(2); // the lone rub further down
+    c.revealAll(0);
+    expect(c.revealedLines()).toHaveLength(3); // whole lines once the band finishes
+  });
+
   it('respects stamp rotation', () => {
     const c = new Coverage([{ band: 'legs', paths: [line(300)] }]);
     // Long side along the line (rotation 90°) covers 40 units of it.
