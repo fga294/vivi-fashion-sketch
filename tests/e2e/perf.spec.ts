@@ -161,3 +161,33 @@ test('frame rate while colouring with a pencil', async ({ page }, info) => {
   expect(stats.median).toBeLessThan(17.5);
   expect(stats.slowestSecondFps).toBeGreaterThanOrEqual(55);
 });
+
+test('first load: under 2 MB, and playable within 2 s on 4G', async ({ page }, info) => {
+  // 4G as WebPageTest defines it (9 Mbps, 170 ms round trip), a phone-ish CPU (4× slower), and a
+  // cold start: no cache and no service worker yet.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Network.enable');
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+  await cdp.send('Network.emulateNetworkConditions', {
+    offline: false,
+    latency: 170,
+    downloadThroughput: (9 * 1024 * 1024) / 8,
+    uploadThroughput: (9 * 1024 * 1024) / 8,
+  });
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  let bytes = 0;
+  cdp.on('Network.loadingFinished', (e: { encodedDataLength: number }) => {
+    bytes += e.encodedDataLength;
+  });
+  const start = Date.now();
+  await page.goto('/');
+  await expect(page.locator('.well--legs .plate')).toBeVisible();
+  await expect(page.locator('.well--pattern .plate')).toBeVisible();
+  const playable = Date.now() - start;
+  await page.waitForLoadState('networkidle');
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  console.log(`[perf] ${info.title}: playable in ${playable} ms, ${(bytes / 1024).toFixed(0)} KB transferred`);
+  info.annotations.push({ type: 'first-load', description: JSON.stringify({ playable, bytes }) });
+  expect(bytes).toBeLessThan(2 * 1024 * 1024);
+  expect(playable).toBeLessThan(2000);
+});

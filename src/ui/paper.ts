@@ -50,6 +50,8 @@ export interface PaperView {
   onTwoFingerTap: (() => void) | null;
   /** Set while a finished sheet flies into the sketchbook, so it doesn't also slide away. */
   leavingToBook: boolean;
+  /** Set while Auto-rub drives the crayon; strokes on the paper wait for it. */
+  autoRubbing: boolean;
 }
 
 /** With Magic fill on, a press that travels less than this (units) is a tap. */
@@ -66,7 +68,7 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
   const loop = new Loop();
   const sheet = new Sheet();
   const rub = new RubEngine(sheet, game.bus, loop);
-  const colour = new ColourEngine(sheet, loop);
+  const colour = new ColourEngine(sheet, loop, rub.field);
   const magic = new MagicFill(sheet, colour.tooth, () => rub.revealedLines());
   const history = new History<unknown>(sheetTileStore(sheet), sheet.pxWidth, sheet.pxHeight);
   rub.history = colour.history = magic.history = history;
@@ -253,6 +255,7 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
     onMagicTap: null,
     onTwoFingerTap: null,
     leavingToBook: false,
+    autoRubbing: false,
   };
 
   el.addEventListener('pointerdown', (e) => {
@@ -273,7 +276,7 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
         }
       } else if (touches.size > 2) twoFinger = null;
     }
-    if (active !== -1 || !e.isPrimary) return; // one stroke at a time: palms and second fingers are ignored
+    if (active !== -1 || !e.isPrimary || view.autoRubbing) return; // one stroke at a time: palms and second fingers are ignored
     e.preventDefault();
     if (game.tool === 'none') {
       wiggle(tray.crayons[game.crayon]);

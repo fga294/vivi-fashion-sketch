@@ -2,7 +2,7 @@
 
 A browser game in the spirit of the classic rub-and-colour fashion design kits: slot head, torso and legs plates into a tracing frame, rub a crayon over the paper to reveal the outfit, then colour it in. See `PLAN.md` for the full design and `DECISIONS.md` for choices made along the way.
 
-Status: **phase 8 of 9** (finishing: a sketchbook of saved sheets on this device, share, print and a blank colouring page, and grown-up settings behind a press-and-hold gate).
+Status: **v1, phase 9 of 9 done.** It installs as an app, plays offline, and has an Auto-rub button for players who can't scrub.
 
 ## Develop
 
@@ -16,8 +16,9 @@ npm run dev          # http://localhost:5173
 ```sh
 npm test             # Vitest unit tests (includes every plate check)
 npm run check:plates # validate the plate art on its own, with a readable report
+npm run check:budget # after a build: first load under 2 MB, and every offline file present
 npx playwright install chromium webkit   # once
-npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, effects, sound, patterns, colouring, saving and printing, frame rate
+npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, effects, sound, patterns, colouring, saving and printing, the smoke test, offline play, frame rate and first load
 ```
 
 Open the game with `?fxstats` to publish its counters on `window.__viviFx`; the effect and sound tests read them:
@@ -87,7 +88,64 @@ Clips load after the player's first tap. The game uses the recorded giggles once
 
 ```sh
 npm run build        # type-checks, then writes a static site to dist/
+npm run check:budget # first load under 2 MB (it's about 290 KB), offline files all present
 npm run preview      # serve dist/ locally
 ```
 
-`dist/` uses relative paths, so it deploys as-is to Netlify, Vercel, Cloudflare Pages or a GitHub Pages subpath. Full deploy steps arrive in phase 9.
+`dist/` is plain static files with relative paths, so it works from a domain root or a subfolder. The build also writes `dist/sw.js`, the service worker that keeps every file for offline play. After changing `public/icons/icon.svg`, run `npm run icons` to redraw the PNG icons.
+
+## Deploy
+
+Any static host works. The game needs HTTPS for its service worker and Web Share, and every host below provides it.
+
+- **Netlify:** New site → import the repository. Build command `npm run build`, publish directory `dist`. Or drag the `dist/` folder onto Netlify's deploy page.
+- **Vercel:** New project → import the repository. Framework preset Vite (or Other), build command `npm run build`, output directory `dist`.
+- **Cloudflare Pages:** Create a project from the repository. Build command `npm run build`, build output directory `dist`, and set the `NODE_VERSION` environment variable to `22`.
+- **GitHub Pages:** in the repository's Settings → Pages, choose "GitHub Actions" as the source, then add `.github/workflows/pages.yml`:
+
+  ```yaml
+  name: Deploy to GitHub Pages
+  on:
+    push:
+      branches: [main]
+    workflow_dispatch:
+  permissions:
+    contents: read
+    pages: write
+    id-token: write
+  concurrency:
+    group: pages
+    cancel-in-progress: true
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      environment:
+        name: github-pages
+        url: ${{ steps.deployment.outputs.page_url }}
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with:
+            node-version: 22
+            cache: npm
+        - run: npm ci
+        - run: npm run build
+        - uses: actions/upload-pages-artifact@v3
+          with:
+            path: dist
+        - id: deployment
+          uses: actions/deploy-pages@v4
+  ```
+
+  The site appears at `https://<user>.github.io/<repository>/`. The relative paths mean no base-path setting is needed.
+
+**Updates.** After a new deploy, a player who already has the game sees the new version the next time they open it: the service worker fetches the new files in the background and takes over. It checks for a new version on every visit.
+
+### Checking a deployed preview on iPhone and iPad
+
+1. Open the site in Safari. It should be playable within a couple of seconds.
+2. Share → Add to Home Screen. The Vivi icon appears, and the game opens full screen without Safari's bars.
+3. Play a round: place plates, lay paper, rub until the giggles and the Ta-da, colour with a pencil and Magic fill, then save to the sketchbook.
+4. With an Apple Pencil, rubbing and colouring press harder as you press harder. Two fingers tapping the paper undo.
+5. Turn on Airplane Mode and open the game from the home screen: it still loads and plays.
+6. In Safari's Web Inspector (Develop menu on a Mac), record a Timeline while scrubbing, and look for 60 fps.

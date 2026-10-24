@@ -21,22 +21,33 @@ export function grainField(size = GRAIN_SIZE, seed = 7): Float32Array {
     [4, 0.18],
     [2, 0.14],
   ];
+  // Each column's lattice cells and blend are the same on every row: work them out once.
+  const c0 = new Int32Array(size);
+  const c1 = new Int32Array(size);
+  const cf = new Float32Array(size);
   for (const [cell, weight] of octaves) {
     const n = size / cell;
     const lattice = new Float32Array(n * n).map(() => rnd());
+    for (let x = 0; x < size; x++) {
+      const gx = x / cell;
+      c0[x] = Math.floor(gx) % n;
+      c1[x] = (c0[x]! + 1) % n;
+      cf[x] = smooth(gx - Math.floor(gx));
+    }
     for (let y = 0; y < size; y++) {
       const gy = y / cell;
-      const y0 = Math.floor(gy) % n;
-      const y1 = (y0 + 1) % n;
+      const top0 = (Math.floor(gy) % n) * n;
+      const bottom0 = (((Math.floor(gy) % n) + 1) % n) * n;
       const fy = smooth(gy - Math.floor(gy));
-      for (let x = 0; x < size; x++) {
-        const gx = x / cell;
-        const x0 = Math.floor(gx) % n;
-        const x1 = (x0 + 1) % n;
-        const fx = smooth(gx - Math.floor(gx));
-        const top = lattice[y0 * n + x0]! + (lattice[y0 * n + x1]! - lattice[y0 * n + x0]!) * fx;
-        const bottom = lattice[y1 * n + x0]! + (lattice[y1 * n + x1]! - lattice[y1 * n + x0]!) * fx;
-        out[y * size + x]! += weight * (top + (bottom - top) * fy);
+      for (let x = 0, i = y * size; x < size; x++, i++) {
+        const fx = cf[x]!;
+        const a = lattice[top0 + c0[x]!]!;
+        const b = lattice[top0 + c1[x]!]!;
+        const c = lattice[bottom0 + c0[x]!]!;
+        const d = lattice[bottom0 + c1[x]!]!;
+        const top = a + (b - a) * fx;
+        const bottom = c + (d - c) * fx;
+        out[i]! += weight * (top + (bottom - top) * fy);
       }
     }
   }
@@ -50,14 +61,28 @@ export function grainField(size = GRAIN_SIZE, seed = 7): Float32Array {
   return out;
 }
 
+/** The values below which shares `qs` of a [0, 1] field fall, from a fine histogram (no sorting). */
+export function quantiles(field: Float32Array, qs: readonly number[]): number[] {
+  const BINS = 4096;
+  const counts = new Uint32Array(BINS);
+  for (const v of field) counts[Math.min(BINS - 1, Math.floor(v * BINS))]!++;
+  return qs.map((q) => {
+    const target = q * field.length;
+    let seen = 0;
+    for (let b = 0; b < BINS; b++) {
+      seen += counts[b]!;
+      if (seen > target) return (b + 0.5) / BINS;
+    }
+    return 1;
+  });
+}
+
 /**
  * Map grain to wax coverage: the lowest ~12% of the field drops out entirely
  * (breaks in the line), the next ~28% is partial, the rest is solid wax.
  */
 export function waxAlpha(field: Float32Array): Uint8ClampedArray {
-  const sorted = Float32Array.from(field).sort();
-  const lo = sorted[Math.floor(sorted.length * 0.12)]!;
-  const hi = sorted[Math.floor(sorted.length * 0.4)]!;
+  const [lo, hi] = quantiles(field, [0.12, 0.4]) as [number, number];
   const out = new Uint8ClampedArray(field.length);
   for (let i = 0; i < field.length; i++) {
     const t = Math.min(1, Math.max(0, (field[i]! - lo) / (hi - lo)));
@@ -83,9 +108,7 @@ export function grainCanvas(alpha: Uint8ClampedArray, size = GRAIN_SIZE): HTMLCa
  * Rubbing again builds colour on the peaks, as with a real pencil.
  */
 export function toothAlpha(field: Float32Array): Uint8ClampedArray {
-  const sorted = Float32Array.from(field).sort();
-  const lo = sorted[Math.floor(sorted.length * 0.18)]!;
-  const hi = sorted[Math.floor(sorted.length * 0.58)]!;
+  const [lo, hi] = quantiles(field, [0.18, 0.58]) as [number, number];
   const out = new Uint8ClampedArray(field.length);
   for (let i = 0; i < field.length; i++) {
     const t = Math.min(1, Math.max(0, (field[i]! - lo) / (hi - lo)));

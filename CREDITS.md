@@ -1,6 +1,6 @@
 # Credits
 
-Everything not listed here (plate art, icons, wordmark, favicon, tray illustration) is original to Vivi Fashion Dresses.
+Everything not listed here (plate art, the app icon and favicon, the other icons, the wordmark, the tray illustration and the Ta-da lettering) is original to Vivi Fashion Dresses.
 
 ## Fonts
 
@@ -15,6 +15,9 @@ Every sound in the game is synthesized at run time in Web Audio (`src/audio/synt
 | Sound | How it is made |
 | --- | --- |
 | Crayon scratch | Pink noise through a 1.8–3 kHz band-pass, with its volume following the stroke |
+| Pencil scratch | The same, through a higher, quieter 3.2–5.2 kHz band |
+| Eraser scratch | The same, through a low, soft 0.5–1.3 kHz band |
+| Magic fill | A soft shimmer of high noise under a quick rising glockenspiel run |
 | Plate flip | A short triangle tick and a high noise snap |
 | Slide | Noise through a sweeping band-pass |
 | Clack | A low sine thump, a short triangle tone and a noise click |

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Vivi Fashion Dresses</title>
+  <!-- A blush plate with its stack's edges, a raised A-line dress, and the black rubbing crayon. -->
+  <rect width="512" height="512" fill="#F1E6C8"/>
+  <rect x="64" y="70" width="384" height="384" rx="56" fill="#E3A9B8"/>
+  <rect x="56" y="62" width="384" height="384" rx="56" fill="#EDBBC7"/>
+  <rect x="48" y="52" width="384" height="384" rx="56" fill="#F4C9D3"/>
+  <rect x="49.5" y="53.5" width="381" height="381" rx="54.5" fill="none" stroke="#FDEBEF" stroke-width="3"/>
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- the dress in relief: a light edge up-left, a shadow down-right, the line in rose -->
+    <g stroke="#FDEBEF" stroke-width="13" transform="translate(-4 -4)">
+      <path d="M206 120 H274 L262 182 L322 352 H158 L218 182 Z"/>
+      <path d="M220 120 V92 M260 120 V92"/>
+    </g>
+    <g stroke="#B95870" stroke-width="13" transform="translate(4 5)">
+      <path d="M206 120 H274 L262 182 L322 352 H158 L218 182 Z"/>
+      <path d="M220 120 V92 M260 120 V92"/>
+    </g>
+    <path d="M206 120 H274 L262 182 L322 352 H158 L218 182 Z" fill="#D9778F" stroke="#D9778F" stroke-width="11"/>
+    <path d="M220 120 V92 M260 120 V92" stroke="#D9778F" stroke-width="11"/>
+    <path d="M218 182 H262" stroke="#C25F79" stroke-width="7"/>
+    <path d="M240 194 V340 M206 260 L196 340 M274 260 L284 340" stroke="#C25F79" stroke-width="5"/>
+  </g>
+  <!-- the crayon, resting across the plate's corner -->
+  <g transform="rotate(-28 344 392)">
+    <path d="M232 372 H424 L456 392 L424 412 H232 C224 412 220 408 220 400 V384 C220 376 224 372 232 372 Z" fill="#2F2A2E"/>
+    <rect x="264" y="368" width="132" height="48" rx="5" fill="#B5A48E"/>
+    <path d="M276 368 V416 M384 368 V416 M292 392 H368" stroke="#8F7F6B" stroke-width="4" stroke-linecap="round"/>
+    <path d="M236 380 H418" stroke="rgba(255,255,255,0.2)" stroke-width="4" stroke-linecap="round"/>
+  </g>
+</svg>

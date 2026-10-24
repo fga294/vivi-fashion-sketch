@@ -6,7 +6,7 @@
 // Pencil dabs are faint, so a stroke shows the paper's tooth and passes build up
 // colour. Every batch tells the undo history which pixels it is about to change.
 
-import { grainCanvas, grainField, toothAlpha } from './grain.ts';
+import { grainCanvas, toothAlpha } from './grain.ts';
 import type { History } from './history.ts';
 import type { Loop } from './loop.ts';
 import type { LayerName, Sheet } from './sheet.ts';
@@ -89,10 +89,11 @@ export class ColourEngine {
   private ux1 = -Infinity;
   private uy1 = -Infinity;
 
-  constructor(sheet: Sheet, loop: Loop) {
+  /** `field` is the paper's grain: the same paper whose tooth catches the crayon's wax. */
+  constructor(sheet: Sheet, loop: Loop, field: Float32Array) {
     this.sheet = sheet;
     this.loop = loop;
-    this.tooth = grainCanvas(toothAlpha(grainField(256, 23)));
+    this.tooth = grainCanvas(toothAlpha(field));
     this.a = canvas2d(SCRATCH, SCRATCH);
     this.toothA = this.a.createPattern(this.tooth, 'repeat')!;
     loop.add(this.frame);

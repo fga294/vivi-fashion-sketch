@@ -11,6 +11,7 @@ import { Game } from './state.ts';
 import { Sketchbook } from './storage/db.ts';
 import { Settings } from './storage/prefs.ts';
 import { announcer } from './ui/announce.ts';
+import { connectAutoRub } from './ui/autorub.ts';
 import { connectColouring } from './ui/colouring.ts';
 import { connectCompletion } from './ui/completion.ts';
 import { connectPlates } from './ui/controller.ts';
@@ -44,6 +45,7 @@ connectPlates(game, tray);
 const paper = connectPaper(game, tray, sound);
 connectPatterns(game, paper);
 connectColouring(game, tray, paper);
+connectAutoRub(game, tray, paper, sound);
 connectSound(game, tray, sound, settings);
 const celebrate = connectCompletion(game, tray, paper, sound);
 // The browser's own Print command prints the sheet in the frame.
@@ -53,6 +55,11 @@ const printer = connectPrint(() => (game.phase === 'noPaper' ? null : exportShee
 const sketchbook = Promise.race([book, new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 3000))]);
 connectSketchbook(game, tray, paper, printer, sketchbook);
 connectSettings(game, tray, settings, { sound, paper }, sketchbook);
+
+// Offline play: the built game keeps itself in a service worker (not in dev, where files change).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => undefined);
+}
 
 if (import.meta.env.DEV) Object.assign(window, { vivi: { game, tray, paper, sound, celebrate } });
 // Effect and sound counters for tests and tuning: open the game with ?fxstats. The synth

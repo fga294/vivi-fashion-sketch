@@ -106,7 +106,8 @@ export class RubEngine {
   private readonly sheet: Sheet;
   private readonly bus: Bus<GameEvents>;
   private readonly loop: Loop;
-  private readonly field: Float32Array;
+  /** The paper's grain field; the pencils' tooth comes from the same paper. */
+  readonly field: Float32Array;
   /** Stamp shapes per crayon colour, made on first use. */
   private readonly stampSets = new Map<string, HTMLCanvasElement[]>();
   private stamps: HTMLCanvasElement[];
@@ -179,6 +180,23 @@ export class RubEngine {
 
   get revealsPattern(): boolean {
     return this.pattern !== null;
+  }
+
+  /** Reveal the figure's lines for a while (Auto-rub), even with a pattern plate tucked in; call the result to go back. */
+  suspendPattern(): () => void {
+    this.drain();
+    const held = this.pattern;
+    this.pattern = null;
+    return () => {
+      this.drain();
+      this.pattern ??= held;
+    };
+  }
+
+  /** Whether a band placed under this paper has finished (and giggled). */
+  isDone(band: PlateBand): boolean {
+    const i = this.bands.indexOf(band);
+    return i >= 0 && this.done[i] === 1;
   }
 
   private stampsIn(colour: string): HTMLCanvasElement[] {

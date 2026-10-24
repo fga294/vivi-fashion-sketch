@@ -253,3 +253,35 @@ Choices made where PLAN.md is silent or needed interpreting, newest phase last.
 - **Testing.** `tests/e2e/finish.spec.ts` covers:
   - the Done-when checks: the export matches the screen, exactly one printed page on A4 and Letter (plus the blank page and the browser's own Print command), and the game running with `localStorage` and `indexedDB` throwing;
   - the sketchbook surviving a reload, delete with confirm, saving on New sheet, the gate (a tap, a short hold, a full hold, the keyboard), settings remembered across a reload, delete-all, and the share sheet getting one PNG.
+
+## Phase 9 — Polish and ship
+
+- **The app icon** (`public/icons/icon.svg`) is original: a raised rose A-line dress on a blush plate, with the stack's edges showing and the black rubbing crayon resting across the corner, on the tray's cream.
+  - `npm run icons` renders the 192, 512, maskable 512 and Apple 180 PNGs with Playwright's Chromium, already a dev dependency, so the icon needs no image tools. The maskable icon keeps the art within the centre 80%.
+  - The small favicon stays the simpler 64-unit version.
+- **The manifest.**
+  - Name "Vivi Fashion Dresses", short name "Vivi", `start_url` and `scope` `./` (so it works under a GitHub Pages subpath), standalone display, any orientation, and the table colour as background and theme.
+  - iOS gets `apple-touch-icon` and the home-screen meta tags.
+- **Offline.** The service worker is written by hand: Workbox would be a new dependency.
+  - `src/sw/worker.ts` is a typed function. A small plugin in `vite.config.ts` writes `dist/sw.js` as a call to it with the build's version and every file to keep: the public files, every plate and clip in their manifests, and the hashed script and stylesheet (about 41 files, 290 KB).
+  - Each build is a new version, because public files keep their names when they change.
+  - Install keeps everything and takes over. Activate drops older `vivi-` caches only. Same-origin requests come from the cache first; anything else fetched, such as recorded giggles, is kept for next time. Offline, a page request gets the cached game.
+  - Lookups ignore `?switches` and the `Vary` header. A `crossorigin` script carries an `Origin` header, the preview server answers `Vary: Origin`, and the file kept at install then didn't match. Hosts often send `Vary: Accept-Encoding` too.
+  - It registers only in production builds, with `updateViaCache: 'none'`, so each visit checks for a new version.
+- **Auto-rub** is a round "Auto" button above the paper button, shown while the paper is down and a band is left to rub.
+  - Each press sends the crayon back and forth across the next unfinished band, top first, at 3 units per ms. The rows are 28 units apart (under the 40-unit stamp), over the plate's own lines plus a margin. A head takes about half a second, the legs about 2 seconds.
+  - It drives the same rubbing engine, scratch, crumbs and cursor as a hand, so the band completes, shimmers and giggles just as if rubbed.
+  - It always reveals the figure's lines, setting a tucked pattern plate aside while it works. Strokes on the paper wait until it finishes.
+  - It works from the keyboard like any button.
+- **The smoke test** (`tests/e2e/smoke.spec.ts`) is the plan's: double-tap three plates in, lay the paper, send a synthetic scrub of pointer events, and expect exactly three `band:complete` events. The same file checks Auto-rub (three presses, three giggles, keyboard too, with a pattern tucked in), offline play after a reload with the network off, and the manifest and icons.
+- **The budget.**
+  - `npm run check:budget` sums the build without recorded sounds: about 290 KB against 2 MB.
+  - A test in the `perf` project loads the game cold on 4G (9 Mbps, 170 ms round trip, as WebPageTest defines it) with the CPU slowed 4×. The game is playable (plates in the wells) in about 1.75 s, with about 106 KB transferred.
+  - That is over HTTP/1.1, where the 27 plate files arrive in several round trips. Netlify, Vercel, Cloudflare Pages and GitHub Pages serve HTTP/2, where they arrive together.
+  - The page doesn't preload `plates.json`. That saved about 90 ms in Chromium, but WebKit doesn't hand a fetch preload to the game's `fetch()`: Safari downloaded the list twice and warned about it.
+- **Deploying** is documented for Netlify, Vercel, Cloudflare Pages and GitHub Pages (with an Actions workflow) in the README. Nothing is deployed automatically: publishing the site is the owner's call.
+- **Startup.** Lighthouse (mobile) traced most of its blocking time to one startup task, and a profile put most of that task's script time on the paper grain. Three changes cut grain generation from about 54 ms to 18 ms on a laptop:
+  - one field is now shared by the crayon and the pencils (the pencils' tooth comes from the same paper);
+  - its per-column lattice lookups are worked out once per octave;
+  - its percentiles come from a 4,096-bin histogram instead of sorting 65,000 values.
+  The field itself is unchanged. Lighthouse (mobile) then scores performance 94 (from 78; total blocking time 890 → 240 ms), and accessibility, best practices and SEO 100 (SEO with the new `robots.txt`).

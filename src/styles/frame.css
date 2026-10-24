@@ -293,6 +293,19 @@
   color: var(--ink-deep);
 }
 
+/* Auto-rub sits above the paper button while there is a band left to rub. */
+.autorub-btn {
+  position: absolute;
+  top: 24%;
+  right: calc(100% + 8px);
+  transform: translateY(-50%);
+  min-width: 56px;
+}
+
+.autorub-btn[aria-disabled='true'] .bump__dome {
+  background: var(--plate-blush);
+}
+
 /* ---------- The active pattern plate, tucked under the window's left edge ---------- */
 
 /* Most of the plate sits under the window (which is later in the stage, so it covers it);
