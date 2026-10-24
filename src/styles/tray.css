@@ -710,11 +710,19 @@ button {
   }
 }
 
+/* Less motion: the device's setting, unless the grown-up settings choose otherwise. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  html:not([data-motion='full']) *,
+  html:not([data-motion='full']) *::before,
+  html:not([data-motion='full']) *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+html[data-motion='reduce'] *,
+html[data-motion='reduce'] *::before,
+html[data-motion='reduce'] *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
 }

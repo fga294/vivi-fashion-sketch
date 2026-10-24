@@ -1,5 +1,6 @@
 import type { PlateBand, SlotBand } from './art/bands.ts';
 import type { CrayonId, PencilId } from './art/colours.ts';
+import type { Prefs } from './storage/prefs.ts';
 import { isFigure, PLATE_KINDS, type PlateArt, type PlateKind } from './art/plates.ts';
 
 export type FigurePlate = PlateArt & { readonly band: PlateBand };
@@ -65,8 +66,16 @@ export interface GameEvents {
   'paper:lift': Record<string, never>;
   /** The frame's window closes over the laid paper. */
   'paper:clack': Record<string, never>;
+  /** The sheet is about to leave the frame for a new one (it can still be read, e.g. to save it). */
+  'sheet:finish': Record<string, never>;
   /** The sheet is cleared and taken out of the frame. */
   'paper:new': Record<string, never>;
+  /** A sheet went into the sketchbook: by the Save button, or `auto` when a new sheet replaced it. */
+  'sheet:saved': { readonly auto: boolean };
+  /** Something was drawn on, filled, erased, undone or redone on the sheet. */
+  'sheet:changed': Record<string, never>;
+  /** The grown-up settings changed (already applied and saved). */
+  'prefs:change': { readonly prefs: Prefs };
   'tool:change': { readonly tool: Tool };
   /** A different rubbing crayon is chosen. */
   'crayon:change': { readonly crayon: CrayonId };
@@ -198,9 +207,10 @@ export class Game {
     return true;
   }
 
-  /** Take the sheet out of the frame and start again (saving to the sketchbook arrives in phase 8). */
+  /** Take the sheet out of the frame (the sketchbook keeps it) and start again. */
   newSheet(): boolean {
     if (this.phase === 'noPaper') return false;
+    this.bus.emit('sheet:finish', {});
     this.phase = 'noPaper';
     this.bus.emit('paper:new', {});
     this.usePattern(null); // a fresh sheet starts with the figure's lines

@@ -65,6 +65,7 @@ export class SoundEngine {
   private readonly scratches = new Map<ScratchKind, synth.Scratch>();
   private scratch: synth.Scratch | null = null;
   private muted: boolean;
+  private volume = 1;
   private listening = false;
   private lastGiggle = -1;
   private nextPopAt = 0;
@@ -95,9 +96,22 @@ export class SoundEngine {
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    if (!this.ctx || !this.master) return;
     if (muted) this.scratchEnd();
-    this.master.gain.setTargetAtTime(muted ? 0 : MASTER_LEVEL, this.ctx.currentTime, 0.015);
+    this.applyLevel();
+  }
+
+  /** Volume 0–1 under the master level (the grown-up settings' slider). */
+  setVolume(volume: number): void {
+    this.volume = Math.min(1, Math.max(0, volume));
+    this.applyLevel();
+  }
+
+  private get level(): number {
+    return this.muted ? 0 : MASTER_LEVEL * this.volume;
+  }
+
+  private applyLevel(): void {
+    if (this.ctx && this.master) this.master.gain.setTargetAtTime(this.level, this.ctx.currentTime, 0.015);
   }
 
   /** Wait for the first gesture; also re-unlock if iOS suspends or interrupts the context later. */
@@ -144,7 +158,7 @@ export class SoundEngine {
     limiter.release.value = 0.15;
     limiter.connect(ctx.destination);
     const master = ctx.createGain();
-    master.gain.value = this.muted ? 0 : MASTER_LEVEL;
+    master.gain.value = this.level;
     master.connect(limiter);
     this.ctx = ctx;
     this.master = master;

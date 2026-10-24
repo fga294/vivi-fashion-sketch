@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { nextGiggle, parseSoundManifest } from '../../src/audio/sound.ts';
 import { BLIP, GAP, GIGGLE_VOICES, giggleScore } from '../../src/audio/synth.ts';
 import { mulberry32 } from '../../src/engine/random.ts';
-import { DEFAULT_PREFS, readPrefs, writePrefs } from '../../src/storage/prefs.ts';
+import { DEFAULT_PREFS, readPrefs, Settings, writePrefs } from '../../src/storage/prefs.ts';
 
 describe('nextGiggle', () => {
   it('never picks the same giggle twice in a row, and uses every one', () => {
@@ -94,13 +94,40 @@ describe('prefs', () => {
     expect(readPrefs(store)).toEqual({ ...DEFAULT_PREFS, sound: false });
   });
 
+  it('reads every setting, keeping only valid values', () => {
+    const store = memory();
+    expect(DEFAULT_PREFS).toEqual({ sound: true, volume: 1, peek: true, stayInside: true, motion: 'system' });
+    store.data.set('vivi-fashion-dresses:prefs', JSON.stringify({ volume: 0.4, peek: false, motion: 'reduce' }));
+    expect(readPrefs(store)).toEqual({ sound: true, volume: 0.4, peek: false, stayInside: true, motion: 'reduce' });
+    store.data.set('vivi-fashion-dresses:prefs', JSON.stringify({ volume: 3, peek: 'no', motion: 'wild' }));
+    expect(readPrefs(store)).toEqual(DEFAULT_PREFS);
+  });
+
+  it('Settings keep changes in memory, written through when storage allows', () => {
+    const store = memory();
+    const settings = new Settings(store);
+    expect(settings.update({ peek: false }).peek).toBe(false);
+    expect(new Settings(store).value.peek).toBe(false);
+    const blocked = new Settings({
+      getItem: () => {
+        throw new Error('SecurityError');
+      },
+      setItem: () => {
+        throw new Error('SecurityError');
+      },
+    });
+    expect(blocked.value).toEqual(DEFAULT_PREFS);
+    blocked.update({ sound: false });
+    expect(blocked.update({ volume: 0.5 })).toMatchObject({ sound: false, volume: 0.5 }); // earlier changes survive in memory
+  });
+
   it('saves Stay inside alongside sound, and keeps the other setting', () => {
     const store = memory();
     expect(DEFAULT_PREFS.stayInside).toBe(true);
     writePrefs({ sound: false }, store);
-    expect(writePrefs({ stayInside: false }, store)).toEqual({ sound: false, stayInside: false });
+    expect(writePrefs({ stayInside: false }, store)).toEqual({ ...DEFAULT_PREFS, sound: false, stayInside: false });
     store.data.set('vivi-fashion-dresses:prefs', '{"stayInside":"no","sound":false}');
-    expect(readPrefs(store)).toEqual({ sound: false, stayInside: true });
+    expect(readPrefs(store)).toEqual({ ...DEFAULT_PREFS, sound: false, stayInside: true });
   });
 
   it('falls back to defaults on missing, corrupt or blocked storage', () => {

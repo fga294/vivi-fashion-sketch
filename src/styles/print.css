@@ -1,0 +1,45 @@
+/* Printing shows only the chosen sheet, centred, with a small footer (PLAN.md). The
+   sheet is 1 : 2.5; at 240 mm tall it fits A4 and US Letter with 12 mm margins. */
+
+.print-sheet {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #ffffff !important;
+  }
+
+  body > :not(.print-sheet) {
+    display: none !important;
+  }
+
+  .print-sheet.is-ready {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-sheet__art {
+    display: block;
+    height: 240mm;
+    width: auto;
+    border: 0.3mm solid #d9cba6;
+  }
+
+  .print-sheet__footer {
+    margin: 3mm 0 0;
+    font: 300 9pt var(--font-ui);
+    letter-spacing: 0.04em;
+    color: #6b5b5e;
+  }
+}

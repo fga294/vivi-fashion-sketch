@@ -5,10 +5,9 @@ import { patternTile } from '../engine/pattern.ts';
 import type { FigurePlate, Game } from '../state.ts';
 import type { PaperView } from './paper.ts';
 
-export function connectPatterns(game: Game, paper: PaperView, stayInside: boolean): void {
+export function connectPatterns(game: Game, paper: PaperView): void {
   const { rub, sheet } = paper;
-  const stay = paper.stayInside;
-  stay.enabled = stayInside;
+  const stay = paper.stayInside; // switched on and off by the settings
   const tiles = new Map<string, HTMLCanvasElement>();
 
   /** Rasterise the walls once things are quiet, so the first pattern stroke doesn't wait. */

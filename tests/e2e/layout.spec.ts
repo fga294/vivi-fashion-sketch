@@ -60,8 +60,9 @@ test('tray renders cleanly with the self-hosted font', async ({ page }, info) =>
 test('every control is a labelled button of at least 48 px', async ({ page }) => {
   await open(page);
   const buttons = page.locator('button:visible');
-  // 5 wells + 4 crayons + pencil box + paper + 5 bumps (the tucked pattern plate shows only when one is in use)
-  await expect(buttons).toHaveCount(16);
+  // 5 wells + 4 crayons + pencil box + paper + 5 bumps + the settings gear (the tucked pattern
+  // plate, Redo and the dialogs' buttons show only when needed)
+  await expect(buttons).toHaveCount(17);
   for (const b of await buttons.all()) {
     await expect(b).toHaveAttribute('aria-label', /\w/);
     await b.scrollIntoViewIfNeeded();

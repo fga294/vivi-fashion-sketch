@@ -218,3 +218,38 @@ Choices made where PLAN.md is silent or needed interpreting, newest phase last.
   - `tests/e2e/colouring.spec.ts` covers the Done-when checks: fills never cover lines, the eraser never removes lines, and 30 undo steps work and redo back. It also covers undoing a fill, an eraser stroke and a pattern stroke, the big-fill check, the pencil box, and the two-finger tap (on touch devices).
   - The `perf` project gains a frame-rate test for pencil colouring.
   - The tests that rub the whole figure first are marked slow, and they wait for the finishing sweeps to stop drawing before fingerprinting the lines.
+
+## Phase 8 — Save, print, sketchbook, settings
+
+- **Export.** The sheet as it looks in the frame, at 1200 × 3000:
+  - the paper at full strength (Peek thins it only on screen);
+  - colour multiplied over it, as on screen;
+  - the wax haze at its on-screen 13%;
+  - then the pattern and the lines.
+  The effects layer and the celebration glow are never included. Sheets drawn at one pixel per unit (screens without high density) are scaled up.
+- **"The exported PNG matches the screen"** is checked by comparing the downloaded PNG with a screenshot of the sheet, both shrunk to 120 × 300, with Peek off and the window lip's shading at the edges left out. The mean difference is 0.3–2.2 (out of 255) in all five browser setups. The 95th percentile stays under 16; a few grainy line edges shrink differently on screen than in a canvas.
+- **The sketchbook.** The Sketchbook bump opens a dialog:
+  - **This sheet:** a thumbnail with Save, Share, Print and Blank. Blank is the blank colouring page: every line of the plates in the frame, clean and uncoloured on white.
+  - **Saved sheets:** a grid of thumbnails, newest first. Tapping one shows it large, with Back, Share, Print and Delete. Delete asks with a tick or a cross.
+  - Every control is an icon with a one-word label.
+- **A new sheet saves the old one** if anything was drawn on it since it was laid or last saved. A copy flutters from the frame into the Sketchbook button, and the sheet doesn't slide away as well. An untouched sheet isn't saved. A new `sheet:finish` event comes before `paper:new`, so the sheet can be exported before it is cleared.
+- **Storage.**
+  - Saved sheets live in IndexedDB (`vivi-fashion-dresses`), on this device only. The PNGs are stored as plain bytes: WebKit's private and ephemeral sessions refuse Blobs in IndexedDB but accept ArrayBuffers.
+  - Opening the sketchbook test-writes a tiny record first, because some private modes open the database but refuse writes. The game waits at most 3 seconds for it, since IndexedDB can hang rather than fail.
+  - Without storage, "hide the sketchbook" means no saved sheets and no Save. The Sketchbook bump stays, because it's also where Share, Print and Blank live, and those still work.
+- **Share** uses the Web Share API with the PNG file where it can share files, otherwise it downloads the file (`vivi-fashion-YYYY-MM-DD-HHMM.png`). Sharing isn't behind the parent gate: the plan gates only settings and delete-all, and both paths hand the file to the device.
+- **Print.** A print-only container holds a 1200 × 3000 canvas, drawn just before printing. A canvas prints straight away, where a freshly set image might still be decoding.
+  - The print stylesheet hides everything else and shows the sheet 240 mm tall, with 12 mm margins and a small "Vivi Fashion Dresses" footer. That fits one page on both A4 and US Letter.
+  - The browser's own Print command (⌘P) prints the sheet in the frame the same way.
+  - The test prints to PDF in both sizes and counts exactly one page.
+- **Settings and the parent gate.**
+  - The gear sits at the frame's top right. Pressing and holding it for 3 seconds fills a ring and opens the settings. A quick tap shows "Grown-ups: press and hold" instead. Holding Enter or Space works from the keyboard.
+  - The gate is time-based: letting go after 3 seconds opens the settings even if a busy frame hasn't let the ring finish drawing yet.
+  - The dialog has Sound (in step with the Sound bump), Volume, Peek, Stay inside, Motion, and "Delete all saved sheets" (tick or cross). Motion offers "Follow this device", "Less motion" or "Full motion".
+  - The settings text is written for grown-ups. The dialogs are native `<dialog>`s, so focus stays inside and Escape closes them.
+- **One settings object** holds the settings in memory and writes them through to `localStorage` when it can. With storage blocked they still apply until the page closes. The Sound bump and the settings both go through it, so they always agree.
+- **Motion override.** The setting stamps `data-motion` on the page root. The CSS's reduced-motion rules follow it, and so does every script that checks for reduced motion. "Full motion" overrides even a device that asks for less.
+- **`panels.css`** holds the dialogs' styles, alongside the plan's `tray.css`, `frame.css` and `print.css`.
+- **Testing.** `tests/e2e/finish.spec.ts` covers:
+  - the Done-when checks: the export matches the screen, exactly one printed page on A4 and Letter (plus the blank page and the browser's own Print command), and the game running with `localStorage` and `indexedDB` throwing;
+  - the sketchbook surviving a reload, delete with confirm, saving on New sheet, the gate (a tap, a short hold, a full hold, the keyboard), settings remembered across a reload, delete-all, and the share sheet getting one PNG.

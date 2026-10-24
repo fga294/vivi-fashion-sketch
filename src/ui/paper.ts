@@ -48,6 +48,8 @@ export interface PaperView {
   onMagicTap: ((x: number, y: number) => void) | null;
   /** Two fingers tapped the paper together (undo on iPad). */
   onTwoFingerTap: (() => void) | null;
+  /** Set while a finished sheet flies into the sketchbook, so it doesn't also slide away. */
+  leavingToBook: boolean;
 }
 
 /** With Magic fill on, a press that travels less than this (units) is a tap. */
@@ -143,7 +145,10 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
       sheet.clear();
       rub.linesVersion++; // the lines Magic fill reads are gone too
     };
-    if (prefersReducedMotion()) done();
+    if (view.leavingToBook) {
+      view.leavingToBook = false; // its copy is fluttering into the sketchbook
+      done();
+    } else if (prefersReducedMotion()) done();
     else
       sheet.element
         .animate([{ transform: 'none', opacity: 1 }, { transform: 'translateX(112%) rotate(5deg)', opacity: 0 }], {
@@ -247,6 +252,7 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
     endStroke,
     onMagicTap: null,
     onTwoFingerTap: null,
+    leavingToBook: false,
   };
 
   el.addEventListener('pointerdown', (e) => {
@@ -346,6 +352,7 @@ export function connectPaper(game: Game, tray: TrayView, sound: StrokeSound): Pa
     }
     sound.scratchEnd();
     history.commit();
+    game.bus.emit('sheet:changed', {});
   }
 
   /** Throw the stroke in progress away, putting back anything undoable it drew. */

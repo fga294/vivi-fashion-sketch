@@ -165,6 +165,7 @@ export function connectColouring(game: Game, tray: TrayView, paper: PaperView): 
       return;
     }
     game.bus.emit('history:step', { direction });
+    game.bus.emit('sheet:changed', {});
     announce(direction === 'undo' ? 'Undone.' : 'Redone.');
   };
   undoButton.addEventListener('click', () => step('undo'));
@@ -196,6 +197,7 @@ export function connectColouring(game: Game, tray: TrayView, paper: PaperView): 
     magic.apply(plan);
     history.commit();
     game.bus.emit('fill:done', { share: plan.share });
+    game.bus.emit('sheet:changed', {});
   };
   function cancelFill(): void {
     if (!pending) return;

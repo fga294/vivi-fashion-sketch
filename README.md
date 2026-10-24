@@ -2,7 +2,7 @@
 
 A browser game in the spirit of the classic rub-and-colour fashion design kits: slot head, torso and legs plates into a tracing frame, rub a crayon over the paper to reveal the outfit, then colour it in. See `PLAN.md` for the full design and `DECISIONS.md` for choices made along the way.
 
-Status: **phase 7 of 9** (colouring: 16 pencils from a box that fans open, Magic fill with a hand-hatched texture, the eraser, and 30 steps of undo and redo).
+Status: **phase 8 of 9** (finishing: a sketchbook of saved sheets on this device, share, print and a blank colouring page, and grown-up settings behind a press-and-hold gate).
 
 ## Develop
 
@@ -17,7 +17,7 @@ npm run dev          # http://localhost:5173
 npm test             # Vitest unit tests (includes every plate check)
 npm run check:plates # validate the plate art on its own, with a readable report
 npx playwright install chromium webkit   # once
-npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, effects, sound, patterns, colouring, frame rate
+npm run test:e2e     # Playwright: layout at 1366×1024, 1024×768 and 390×844, plate play, seams at 400%, rubbing, effects, sound, patterns, colouring, saving and printing, frame rate
 ```
 
 Open the game with `?fxstats` to publish its counters on `window.__viviFx`; the effect and sound tests read them:
@@ -29,11 +29,7 @@ Open the game with `?fxstats` to publish its counters on `window.__viviFx`; the 
 - the game state and the Stay inside helper (`stayInside.clipAt(x, y)` gives the area a stroke starting there would stay in)
 - the undo history (`history.steps`, `canUndo`, `canRedo`) and the revealed lines Magic fill stops at (`revealedLines()`)
 
-**Stay inside** is on by default; its switch arrives with the settings panel in phase 8. To try it off now, run this in the browser console and reload:
-
-```js
-localStorage.setItem('vivi-fashion-dresses:prefs', JSON.stringify({ stayInside: false }))
-```
+**Settings** (sound, volume, Peek, Stay inside, motion, and deleting every saved sheet) sit behind the gear at the frame's top right: press and hold it for 3 seconds. They are kept in `localStorage`. Saved sheets live in IndexedDB on this device only. With site data blocked (some private browsing modes), the game still runs: settings apply until the page closes, and the sketchbook offers only share and print.
 
 The frame-rate check (`tests/e2e/perf.spec.ts`) runs last and alone, in Chromium with GPU canvases and the CPU slowed 4×. Headless browsers draw canvases without a GPU, so their frame times say little about a device. Check a real iPad too: open the game in Safari, connect Safari's Web Inspector (Develop menu), record a Timeline while scrubbing, and look for 60 fps.
 
