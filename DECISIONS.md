@@ -279,7 +279,7 @@ Choices made where PLAN.md is silent or needed interpreting, newest phase last.
   - A test in the `perf` project loads the game cold on 4G (9 Mbps, 170 ms round trip, as WebPageTest defines it) with the CPU slowed 4×. The game is playable (plates in the wells) in about 1.75 s, with about 106 KB transferred.
   - That is over HTTP/1.1, where the 27 plate files arrive in several round trips. Netlify, Vercel, Cloudflare Pages and GitHub Pages serve HTTP/2, where they arrive together.
   - The page doesn't preload `plates.json`. That saved about 90 ms in Chromium, but WebKit doesn't hand a fetch preload to the game's `fetch()`: Safari downloaded the list twice and warned about it.
-- **Deploying** is documented for Netlify, Vercel, Cloudflare Pages and GitHub Pages (with an Actions workflow) in the README. Nothing is deployed automatically: publishing the site is the owner's call.
+- **Deploying** is documented for Netlify, Vercel, Cloudflare Pages and GitHub Pages in the README. This repository deploys to GitHub Pages (https://fga294.github.io/vivi-fashion-sketch/): `.github/workflows/pages.yml` builds, checks the budget and deploys every push to `main`.
 - **Startup.** Lighthouse (mobile) traced most of its blocking time to one startup task, and a profile put most of that task's script time on the paper grain. Three changes cut grain generation from about 54 ms to 18 ms on a laptop:
   - one field is now shared by the crayon and the pencils (the pencils' tooth comes from the same paper);
   - its per-column lattice lookups are worked out once per octave;

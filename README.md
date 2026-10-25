@@ -101,43 +101,9 @@ Any static host works. The game needs HTTPS for its service worker and Web Share
 - **Netlify:** New site → import the repository. Build command `npm run build`, publish directory `dist`. Or drag the `dist/` folder onto Netlify's deploy page.
 - **Vercel:** New project → import the repository. Framework preset Vite (or Other), build command `npm run build`, output directory `dist`.
 - **Cloudflare Pages:** Create a project from the repository. Build command `npm run build`, build output directory `dist`, and set the `NODE_VERSION` environment variable to `22`.
-- **GitHub Pages:** in the repository's Settings → Pages, choose "GitHub Actions" as the source, then add `.github/workflows/pages.yml`:
+- **GitHub Pages:** the repository includes `.github/workflows/pages.yml`, which builds, checks the budget and deploys on every push to `main`. For a fork, turn it on in Settings → Pages by choosing "GitHub Actions" as the source.
 
-  ```yaml
-  name: Deploy to GitHub Pages
-  on:
-    push:
-      branches: [main]
-    workflow_dispatch:
-  permissions:
-    contents: read
-    pages: write
-    id-token: write
-  concurrency:
-    group: pages
-    cancel-in-progress: true
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
-      environment:
-        name: github-pages
-        url: ${{ steps.deployment.outputs.page_url }}
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-node@v4
-          with:
-            node-version: 22
-            cache: npm
-        - run: npm ci
-        - run: npm run build
-        - uses: actions/upload-pages-artifact@v3
-          with:
-            path: dist
-        - id: deployment
-          uses: actions/deploy-pages@v4
-  ```
-
-  The site appears at `https://<user>.github.io/<repository>/`. The relative paths mean no base-path setting is needed.
+  The site appears at `https://<user>.github.io/<repository>/`; this one is at https://fga294.github.io/vivi-fashion-sketch/. The relative paths mean no base-path setting is needed.
 
 **Updates.** After a new deploy, a player who already has the game sees the new version the next time they open it: the service worker fetches the new files in the background and takes over. It checks for a new version on every visit.
 
